@@ -44,9 +44,9 @@ export default function BarcodeScanner({
   const cooldownsRef = useRef<Map<string, number>>(new Map());
   const resumeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Flags to prevent strict mode double-init
-  const isInitializingRef = useRef(false);
-  const isStoppingRef = useRef(false);
+  // Active mount tracker to prevent async race conditions under StrictMode dev double-mounting (B1)
+  const activeMountIdRef = useRef(0);
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
 
   // Clean condition name helper
   const getConditionLabel = (c: string) => {
@@ -64,7 +64,7 @@ export default function BarcodeScanner({
     }
   };
 
-  // Synthesize positive success chime
+  // Synthesize positive success chime (using AudioContext created on click gesture) (N2, N3)
   const playSuccessChime = () => {
     const audioCtx = audioContextRef.current;
     if (!audioCtx) return;
@@ -107,14 +107,14 @@ export default function BarcodeScanner({
   };
 
   // Handle barcode scanned successfully
-  const handleScanSuccess = async (decodedText: string) => {
+  const handleScanSuccess = async (decodedText: string, myMountId: number) => {
     const scanner = scannerRef.current;
-    if (!scanner || isStoppingRef.current) return;
+    if (!scanner || activeMountIdRef.current !== myMountId) return;
 
     const now = Date.now();
     const normalized = decodedText.replace(/[\s-]/g, "");
 
-    // 1. Check cooldown (5s per-code limit to prevent duplication of lingures/errors)
+    // 1. Check cooldown (5s per-code limit to prevent duplication) (B1, N2, N5)
     const lastScanTime = cooldownsRef.current.get(normalized) || 0;
     if (now - lastScanTime < 5000) {
       return;
@@ -122,6 +122,13 @@ export default function BarcodeScanner({
 
     // Add to cooldowns Ref immediately
     cooldownsRef.current.set(normalized, now);
+
+    // Evict entries older than 5 seconds to keep map size bounded (N3)
+    for (const [key, timestamp] of cooldownsRef.current.entries()) {
+      if (now - timestamp > 5000) {
+        cooldownsRef.current.delete(key);
+      }
+    }
 
     // 2. Validate checksum & book prefixes
     if (!isValidIsbn13(normalized)) {
@@ -136,7 +143,7 @@ export default function BarcodeScanner({
       // Auto-resume after 2.5s
       if (resumeTimeoutRef.current) clearTimeout(resumeTimeoutRef.current);
       resumeTimeoutRef.current = setTimeout(() => {
-        if (scanner.isScanning && !isStoppingRef.current) {
+        if (scanner.isScanning && activeMountIdRef.current === myMountId) {
           scanner.resume();
           setScannerState("scanning");
         }
@@ -152,9 +159,11 @@ export default function BarcodeScanner({
     }
     setScannerState("processing");
 
-    // 4. Invoke integration lookup contract
+    // 4. Invoke integration lookup contract (B2)
     try {
       const result = await onScan(normalized);
+      if (activeMountIdRef.current !== myMountId) return;
+
       if (result.success) {
         playSuccessChime();
         setScannerState("success");
@@ -170,6 +179,7 @@ export default function BarcodeScanner({
         setErrorMessage(result.error || "Lookup failed.");
       }
     } catch (err) {
+      if (activeMountIdRef.current !== myMountId) return;
       setScannerState("warning");
       setErrorMessage("System error during lookup.");
       console.error(err);
@@ -178,7 +188,7 @@ export default function BarcodeScanner({
     // 5. Schedule scan resume after showing toast status
     if (resumeTimeoutRef.current) clearTimeout(resumeTimeoutRef.current);
     resumeTimeoutRef.current = setTimeout(() => {
-      if (scanner.isScanning && !isStoppingRef.current) {
+      if (scanner.isScanning && activeMountIdRef.current === myMountId) {
         scanner.resume();
         setScannerState("scanning");
       }
@@ -186,8 +196,11 @@ export default function BarcodeScanner({
   };
 
   // Start scanning on active camera
-  const startCamera = async (cameraIdOrFacing: string | { facingMode: string }) => {
-    if (!scannerRef.current || isStoppingRef.current) return;
+  const startCamera = async (
+    cameraIdOrFacing: string | { facingMode: string },
+    myMountId: number
+  ) => {
+    if (!scannerRef.current || activeMountIdRef.current !== myMountId) return;
 
     try {
       setScannerState("loading");
@@ -197,15 +210,29 @@ export default function BarcodeScanner({
           fps: 10,
           qrbox: { width: 280, height: 160 }, // horizontal rectangular scan target for ISBNs
         },
-        handleScanSuccess,
+        (text) => {
+          if (activeMountIdRef.current === myMountId) {
+            handleScanSuccess(text, myMountId);
+          }
+        },
         () => {
           // Silent callback for frame scanning failures (normal when code not aligned yet)
         }
       );
 
+      if (activeMountIdRef.current !== myMountId) {
+        // If mount ID switched while starting, stop scanner cleanly (B2, N2)
+        if (scannerRef.current.isScanning) {
+          await scannerRef.current.stop();
+        }
+        scannerRef.current.clear();
+        return;
+      }
+
       // Successfully scanning
       setScannerState("scanning");
     } catch (err) {
+      if (activeMountIdRef.current !== myMountId) return;
       console.error("Failed to start camera scan:", err);
       const isPermissionErr =
         err instanceof Error &&
@@ -224,10 +251,33 @@ export default function BarcodeScanner({
     }
   };
 
-  // Lifecycle initialization & teardown
+  // Keyboard Escape key close support (N1)
   useEffect(() => {
-    if (isInitializingRef.current || typeof window === "undefined") return;
-    isInitializingRef.current = true;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onClose]);
+
+  // Autofocus the close button on mount for a11y focus management (N1)
+  useEffect(() => {
+    if (closeButtonRef.current) {
+      closeButtonRef.current.focus();
+    }
+  }, []);
+
+  // Lifecycle initialization & teardown (StrictMode double-mount safe) (B1)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    
+    // Increment mount counter and capture this effect run's ID
+    activeMountIdRef.current += 1;
+    const myMountId = activeMountIdRef.current;
 
     const html5QrCode = new Html5Qrcode(containerId, {
       formatsToSupport: [Html5QrcodeSupportedFormats.EAN_13],
@@ -238,6 +288,7 @@ export default function BarcodeScanner({
     const setupScanner = async () => {
       // Check for browser support
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        if (activeMountIdRef.current !== myMountId) return;
         setScannerState("error");
         setErrorMessage(
           "Camera access is unsupported on this browser. Please use the manual input to enter the ISBN."
@@ -248,6 +299,7 @@ export default function BarcodeScanner({
       try {
         // Enumerate video devices
         const devices = await Html5Qrcode.getCameras();
+        if (activeMountIdRef.current !== myMountId) return;
         setCameras(devices);
 
         if (devices.length === 0) {
@@ -258,7 +310,7 @@ export default function BarcodeScanner({
           return;
         }
 
-        // Try environment camera if available, otherwise default to first camera
+        // Try environment camera if available, otherwise default to first camera (N1)
         const backCamera = devices.find((device) =>
           device.label.toLowerCase().includes("back") ||
           device.label.toLowerCase().includes("environment") ||
@@ -268,11 +320,12 @@ export default function BarcodeScanner({
         const targetDevice = backCamera ? backCamera.id : devices[0].id;
         setActiveCameraId(targetDevice);
 
-        await startCamera(targetDevice);
+        await startCamera(targetDevice, myMountId);
       } catch (err) {
+        if (activeMountIdRef.current !== myMountId) return;
         console.error("Setup cameras error:", err);
-        // Fall back to environment mode directly if enumerate fails/is blocked
-        await startCamera({ facingMode: "environment" });
+        // Fall back to environment mode directly if enumerate fails
+        await startCamera({ facingMode: "environment" }, myMountId);
       }
     };
 
@@ -280,7 +333,6 @@ export default function BarcodeScanner({
 
     // Teardown
     return () => {
-      isStoppingRef.current = true;
       if (resumeTimeoutRef.current) {
         clearTimeout(resumeTimeoutRef.current);
       }
@@ -316,14 +368,19 @@ export default function BarcodeScanner({
         await scanner.stop();
       }
       setActiveCameraId(nextCameraId);
-      await startCamera(nextCameraId);
+      await startCamera(nextCameraId, activeMountIdRef.current);
     } catch (err) {
       console.error("Error switching cameras:", err);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-zinc-950/80 backdrop-blur-md p-4">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="scanner-dialog-title"
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-zinc-950/80 backdrop-blur-md p-4"
+    >
       {/* CSS Styles injection for viewport and animations */}
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes laserScan {
@@ -348,7 +405,7 @@ export default function BarcodeScanner({
         {/* Header */}
         <div className="px-5 py-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-900/90 sticky top-0 z-30">
           <div>
-            <h3 className="font-bold text-sm text-zinc-100">
+            <h3 id="scanner-dialog-title" className="font-bold text-sm text-zinc-100">
               Barcode Scanner (ISBN)
             </h3>
             <p className="text-[10px] text-zinc-400 font-medium mt-0.5">
@@ -356,6 +413,7 @@ export default function BarcodeScanner({
             </p>
           </div>
           <button
+            ref={closeButtonRef}
             onClick={onClose}
             aria-label="Close scanner"
             className="text-zinc-400 hover:text-white p-1 rounded-md transition-colors cursor-pointer"

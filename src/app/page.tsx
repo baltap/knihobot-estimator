@@ -181,7 +181,6 @@ export default function Home() {
     });
   };
 
-  // Recalculate estimate inline when condition changes for an item on the shelf
   // Open barcode scanner modal (initializing audio context on click gesture)
   const handleOpenScanner = () => {
     if (!audioContextRef.current) {
