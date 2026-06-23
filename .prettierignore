@@ -1,0 +1,3 @@
+# Ignore documentation and task boards from prettier formatting
+docs/
+*.md
