@@ -137,12 +137,12 @@ start the next task until I say go.
 - **Claude can say DONE; Gemini cannot.** Only an approved review flips a task to
   DONE. This keeps the developer honest.
 - **The Trust Principles win ties.** When polish and honesty conflict, honesty
-  wins — that honesty _is_ the product.
+  wins — that honesty *is* the product.
 
 ## The 90-second pitch this produces
 
-When it's live: a Loom where you say _"Knihobot's loudest seller complaint is
+When it's live: a Loom where you say *"Knihobot's loudest seller complaint is
 that you commit blind and get surprised by the payout. I read the reviews,
 designed a fix, and shipped it — here's a tool that tells you what your books
-are worth and what you'll actually receive, before you send a thing."_ That's
+are worth and what you'll actually receive, before you send a thing."* That's
 the end-to-end-ownership story the role is asking for.
