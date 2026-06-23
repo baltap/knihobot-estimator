@@ -27,3 +27,14 @@ export const RANGE_TUNING = {
   singleComparableRangeWidth: 0.2, // +/- 20% range around single comparable
   doubleComparableRangeWidth: 0.1, // +/- 10% range around two comparables
 } as const;
+
+/**
+ * Catalog-wide list price statistics derived from the 2,400-record snapshot.
+ * These are facts computed from the dataset (p25 / median / p75)
+ * and should be recomputed if the snapshot is re-scraped.
+ */
+export const CATALOG_WIDE_STATS = {
+  p25: 79,
+  median: 129,
+  p75: 199,
+} as const;
