@@ -271,6 +271,125 @@ export default function Home() {
     0
   );
 
+  // Render agency radio group selector for below-threshold books (Principle 4 / B3 Copy Leak Resolved)
+  const renderAgencySelector = (item: ShelfItem) => {
+    if (
+      !item.estimation.hasEstimate ||
+      !item.estimation.payoutMedian.isBelowThreshold
+    ) {
+      return null;
+    }
+    return (
+      <div className="mt-4 p-3 rounded-lg border border-amber-200/50 bg-amber-50/10 dark:border-amber-900/30 dark:bg-amber-950/10 text-xs">
+        <fieldset className="space-y-2">
+          <legend className="block text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400 mb-1">
+            Below earning threshold — how would you like to handle this book?
+          </legend>
+          <div className="space-y-1">
+            <label className="flex items-start gap-2.5 cursor-pointer py-1 rounded hover:bg-zinc-100/50 dark:hover:bg-zinc-800/30">
+              <input
+                type="radio"
+                name={`agency-${item.id}`}
+                value="keep"
+                checked={item.agencySelection === "keep"}
+                onChange={() => handleItemAgencyChange(item.id, "keep")}
+                className="mt-0.5 h-3.5 w-3.5 border-zinc-300 text-brand focus:ring-brand dark:border-zinc-800 dark:focus:ring-emerald-500 cursor-pointer"
+              />
+              <span>
+                <strong className="font-bold text-zinc-800 dark:text-zinc-200">
+                  Keep this book
+                </strong>{" "}
+                — Better off kept on your shelf or gifted to a friend.
+              </span>
+            </label>
+            <label className="flex items-start gap-2.5 cursor-pointer py-1 rounded hover:bg-zinc-100/50 dark:hover:bg-zinc-800/30">
+              <input
+                type="radio"
+                name={`agency-${item.id}`}
+                value="donate"
+                checked={item.agencySelection === "donate"}
+                onChange={() => handleItemAgencyChange(item.id, "donate")}
+                className="mt-0.5 h-3.5 w-3.5 border-zinc-300 text-brand focus:ring-brand dark:border-zinc-800 dark:focus:ring-emerald-500 cursor-pointer"
+              />
+              <span>
+                <strong className="font-bold text-zinc-800 dark:text-zinc-200">
+                  Donate or rehome locally
+                </strong>{" "}
+                — Do not send; donate or recycle it yourself.
+              </span>
+            </label>
+            <label className="flex items-start gap-2.5 cursor-pointer py-1 rounded hover:bg-zinc-100/50 dark:hover:bg-zinc-800/30">
+              <input
+                type="radio"
+                name={`agency-${item.id}`}
+                value="send"
+                checked={item.agencySelection === "send"}
+                onChange={() => handleItemAgencyChange(item.id, "send")}
+                className="mt-0.5 h-3.5 w-3.5 border-zinc-300 text-brand focus:ring-brand dark:border-zinc-800 dark:focus:ring-emerald-500 cursor-pointer"
+              />
+              <span>
+                <strong className="font-bold text-zinc-800 dark:text-zinc-200">
+                  Send anyway
+                </strong>{" "}
+                — Send to Knihobot. If list prices increase, you may still earn;
+                otherwise, it will be handled as a donation.
+              </span>
+            </label>
+          </div>
+        </fieldset>
+      </div>
+    );
+  };
+
+  // Render inline keep selector for normal/oversupplied books (Symmetric Agency Control)
+  const renderNormalKeepSelector = (item: ShelfItem) => {
+    if (
+      !item.estimation.hasEstimate ||
+      item.estimation.payoutMedian.isBelowThreshold
+    ) {
+      return null;
+    }
+    const isOversupplied = item.estimation.demandStatus === "oversupplied";
+    const isChecked =
+      item.agencySelection === "keep" || item.isOversuppliedKept;
+
+    return (
+      <div
+        className={`mt-3 p-2 rounded-lg text-xs flex items-center justify-between ${
+          isOversupplied
+            ? "bg-amber-50/20 border border-amber-100/30 text-amber-700 dark:text-amber-400"
+            : "bg-zinc-100/40 dark:bg-zinc-800/40 text-zinc-700 dark:text-zinc-300"
+        }`}
+      >
+        <span>
+          {isOversupplied
+            ? "High supply. Do you want to keep this copy locally instead?"
+            : "Do you want to keep this copy locally?"}
+        </span>
+        <label className="flex items-center gap-1.5 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={isChecked}
+            onChange={(e) => {
+              if (isOversupplied) {
+                handleOversuppliedKeepToggle(item.id, e.target.checked);
+              } else {
+                handleItemAgencyChange(
+                  item.id,
+                  e.target.checked ? "keep" : "send"
+                );
+              }
+            }}
+            className="h-3.5 w-3.5 border-zinc-300 text-brand focus:ring-brand rounded cursor-pointer"
+          />
+          <span className="font-bold uppercase tracking-wider text-[10px]">
+            Keep Book
+          </span>
+        </label>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-50 font-sans transition-colors duration-200">
       {/* Header bar */}
@@ -374,7 +493,7 @@ export default function Home() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="e.g. 9788024910086 or Tajemství"
-                  className="w-full rounded-lg border border-zinc-250 bg-zinc-50/50 px-3 py-2 text-sm placeholder-zinc-400 outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white dark:focus:border-emerald-500 dark:focus:ring-emerald-500/20 transition-all font-medium"
+                  className="w-full rounded-lg border border-zinc-200 bg-zinc-50/50 px-3 py-2 text-sm placeholder-zinc-400 outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white dark:focus:border-emerald-500 dark:focus:ring-emerald-500/20 transition-all font-medium"
                   aria-required="true"
                 />
               </div>
@@ -394,7 +513,7 @@ export default function Home() {
                     value={authorQuery}
                     onChange={(e) => setAuthorQuery(e.target.value)}
                     placeholder="e.g. Rhonda Byrne"
-                    className="w-full rounded-lg border border-zinc-250 bg-zinc-50/50 px-3 py-2 text-sm placeholder-zinc-400 outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white dark:focus:border-emerald-500 dark:focus:ring-emerald-500/20 transition-all font-medium"
+                    className="w-full rounded-lg border border-zinc-200 bg-zinc-50/50 px-3 py-2 text-sm placeholder-zinc-400 outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white dark:focus:border-emerald-500 dark:focus:ring-emerald-500/20 transition-all font-medium"
                   />
                 </div>
               ) : (
@@ -421,7 +540,7 @@ export default function Home() {
                       e.target.value as "new" | "verygood" | "good" | "worn"
                     )
                   }
-                  className="w-full h-[38px] rounded-lg border border-zinc-250 bg-zinc-50/50 px-2 py-1 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white dark:focus:border-emerald-500 dark:focus:ring-emerald-500/20 transition-all font-medium text-zinc-855 dark:text-zinc-200"
+                  className="w-full h-[38px] rounded-lg border border-zinc-200 bg-zinc-50/50 px-2 py-1 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white dark:focus:border-emerald-500 dark:focus:ring-emerald-500/20 transition-all font-medium text-zinc-800 dark:text-zinc-200"
                 >
                   <option value="new">Like New / Unread (1.2×)</option>
                   <option value="verygood">Very Good (1.1×)</option>
@@ -483,7 +602,7 @@ export default function Home() {
         <section aria-live="polite">
           {shelf.length === 0 ? (
             /* Empty Shelf State [N3] */
-            <div className="rounded-2xl border-2 border-dashed border-zinc-205 dark:border-zinc-800 p-12 text-center text-zinc-500 dark:text-zinc-400">
+            <div className="rounded-2xl border-2 border-dashed border-zinc-200 dark:border-zinc-800 p-12 text-center text-zinc-500 dark:text-zinc-400">
               <svg
                 className="h-10 w-10 mx-auto text-zinc-400 dark:text-zinc-600 mb-3"
                 fill="none"
@@ -509,7 +628,7 @@ export default function Home() {
               {/* ---------------------------------------------------- */}
               {/* Aggregate Headline Card (Shipment Value Summary)     */}
               {/* ---------------------------------------------------- */}
-              <div className="rounded-2xl border border-zinc-250 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/60 border-l-4 border-l-brand dark:border-l-emerald-600">
+              <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/60 border-l-4 border-l-brand dark:border-l-emerald-600">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
                     <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
@@ -525,12 +644,12 @@ export default function Home() {
                       <strong className="font-semibold text-zinc-950 dark:text-white">
                         {shelf.length}
                       </strong>{" "}
-                      books on your shelf
+                      {shelf.length === 1 ? "book" : "books"} on your shelf
                     </p>
-                    <p className="mt-3 text-3xl font-extrabold tracking-tight text-zinc-955 dark:text-white">
+                    <p className="mt-3 text-3xl font-extrabold tracking-tight text-zinc-900 dark:text-white">
                       {totalPayoutMin}–{totalPayoutMax} CZK
                     </p>
-                    <p className="text-[10px] text-zinc-450 mt-1">
+                    <p className="text-[10px] text-zinc-500 mt-1">
                       Estimated payout sum of the shipment bucket.
                     </p>
                   </div>
@@ -543,7 +662,8 @@ export default function Home() {
                       rel="noopener noreferrer"
                       className="inline-flex h-9 items-center justify-center rounded-lg bg-brand px-4 text-xs font-bold text-brand-foreground hover:bg-brand/95 transition-all text-center focus-visible:ring-2 focus-visible:ring-brand/50 dark:bg-emerald-700 dark:hover:bg-emerald-600 cursor-pointer"
                     >
-                      Send {sendBucket.length} books to Knihobot
+                      Send {sendBucket.length}{" "}
+                      {sendBucket.length === 1 ? "book" : "books"} to Knihobot
                     </a>
                     {keepDonateBucket.length > 0 && (
                       <div className="text-center text-[10px] text-zinc-500 dark:text-zinc-400 font-medium">
@@ -559,14 +679,17 @@ export default function Home() {
               {/* ---------------------------------------------------- */}
               <div>
                 <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-3 px-1 flex items-center justify-between">
-                  <span>Shipment List ({sendBucket.length} books)</span>
+                  <span>
+                    Shipment List ({sendBucket.length}{" "}
+                    {sendBucket.length === 1 ? "book" : "books"})
+                  </span>
                   <span className="text-[10px] lowercase font-normal">
                     Included in payout
                   </span>
                 </h3>
 
                 {sendBucket.length === 0 ? (
-                  <div className="rounded-xl border border-zinc-200 border-dashed p-6 text-center text-xs text-zinc-400 dark:border-zinc-805">
+                  <div className="rounded-xl border border-zinc-200 border-dashed p-6 text-center text-xs text-zinc-400 dark:border-zinc-800">
                     No books in shipment list. Adjust agency choices below to
                     include them.
                   </div>
@@ -622,7 +745,7 @@ export default function Home() {
                               </span>
                             )}
                             {item.estimation.demandStatus === "moderate" && (
-                              <span className="inline-flex items-center rounded-full bg-zinc-150 px-2 py-0.5 text-[10px] font-semibold text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                              <span className="inline-flex items-center rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-semibold text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
                                 supply: {item.estimation.activeCopies}
                               </span>
                             )}
@@ -676,7 +799,7 @@ export default function Home() {
                                     | "worn"
                                 )
                               }
-                              className="rounded border border-zinc-200 bg-zinc-50/50 px-1.5 py-0.5 text-xs outline-none dark:border-zinc-800 dark:bg-zinc-955 font-medium text-zinc-800 dark:text-zinc-200"
+                              className="rounded border border-zinc-200 bg-zinc-50/50 px-1.5 py-0.5 text-xs outline-none dark:border-zinc-800 dark:bg-zinc-900 font-medium text-zinc-800 dark:text-zinc-200"
                             >
                               <option value="new">Like New (1.2x)</option>
                               <option value="verygood">Very Good (1.1x)</option>
@@ -711,31 +834,9 @@ export default function Home() {
                           </div>
                         </div>
 
-                        {/* If normal/oversupplied book: allow toggling to Keep */}
-                        {item.estimation.demandStatus === "oversupplied" && (
-                          <div className="mt-3 p-2 bg-amber-50/20 border border-amber-100/30 rounded-lg text-xs text-amber-700 dark:text-amber-400 flex items-center justify-between">
-                            <span>
-                              High supply. Do you want to keep this copy locally
-                              instead?
-                            </span>
-                            <label className="flex items-center gap-1.5 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={item.isOversuppliedKept}
-                                onChange={(e) =>
-                                  handleOversuppliedKeepToggle(
-                                    item.id,
-                                    e.target.checked
-                                  )
-                                }
-                                className="h-3.5 w-3.5 border-zinc-300 text-brand focus:ring-brand rounded cursor-pointer"
-                              />
-                              <span className="font-bold uppercase tracking-wider text-[10px]">
-                                Keep Book
-                              </span>
-                            </label>
-                          </div>
-                        )}
+                        {/* Inline handlers for sub-threshold and normal/oversupplied books */}
+                        {renderAgencySelector(item)}
+                        {renderNormalKeepSelector(item)}
 
                         {/* Math & Peek Panel expandables */}
                         {renderExpandables(item)}
@@ -752,14 +853,15 @@ export default function Home() {
                 <div className="pt-4 border-t border-zinc-200 dark:border-zinc-800">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-3 px-1 flex items-center justify-between">
                     <span>
-                      Better Kept or Donated ({keepDonateBucket.length} books)
+                      Better Kept or Donated ({keepDonateBucket.length}{" "}
+                      {keepDonateBucket.length === 1 ? "book" : "books"})
                     </span>
                     <span className="text-[10px] lowercase font-normal">
                       Excluded from shipment
                     </span>
                   </h3>
 
-                  <div className="p-4 rounded-xl bg-zinc-150/40 border border-zinc-200/50 dark:bg-zinc-900/10 dark:border-zinc-800/80 mb-4 text-xs text-zinc-500 dark:text-zinc-400 leading-normal">
+                  <div className="p-4 rounded-xl bg-zinc-100/40 border border-zinc-200/50 dark:bg-zinc-900/10 dark:border-zinc-800/80 mb-4 text-xs text-zinc-500 dark:text-zinc-400 leading-normal">
                     <strong>Why these are excluded:</strong> These books are
                     estimated below the earning threshold (resulting in a 0 CZK
                     payout), or have a high oversupply warning and you decided
@@ -799,10 +901,10 @@ export default function Home() {
 
                         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                           <div>
-                            <h4 className="font-bold text-sm text-zinc-650 dark:text-zinc-300 leading-tight">
+                            <h4 className="font-bold text-sm text-zinc-600 dark:text-zinc-300 leading-tight">
                               {item.comparables[0]?.title || item.query.title}
                             </h4>
-                            <p className="text-xs text-zinc-505 dark:text-zinc-500 mt-0.5">
+                            <p className="text-xs text-zinc-500 dark:text-zinc-500 mt-0.5">
                               by{" "}
                               {item.comparables[0]?.author ||
                                 item.query.author ||
@@ -821,7 +923,7 @@ export default function Home() {
                                 )}
                                 {item.estimation.demandStatus ===
                                   "moderate" && (
-                                  <span className="inline-flex items-center rounded-full bg-zinc-150 px-2 py-0.5 text-[10px] font-semibold text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                                  <span className="inline-flex items-center rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-semibold text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
                                     supply: {item.estimation.activeCopies}
                                   </span>
                                 )}
@@ -918,123 +1020,9 @@ export default function Home() {
                             )}
                           </div>
                         </div>
-
-                        {/* If below-threshold: render radio group inline on card (Principle 4 / B2 resolved) */}
-                        {item.estimation.hasEstimate &&
-                          item.estimation.payoutMedian.isBelowThreshold && (
-                            <div className="mt-4 p-3 rounded-lg border border-amber-200/50 bg-amber-50/10 dark:border-amber-900/30 dark:bg-amber-950/10 text-xs">
-                              <fieldset className="space-y-2">
-                                <legend className="block text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400 mb-1">
-                                  Below earning threshold — how would you like
-                                  to handle this book? (N1 softened)
-                                </legend>
-                                <div className="space-y-1">
-                                  <label className="flex items-start gap-2.5 cursor-pointer py-1 rounded hover:bg-zinc-100/50 dark:hover:bg-zinc-800/30">
-                                    <input
-                                      type="radio"
-                                      name={`agency-${item.id}`}
-                                      value="keep"
-                                      checked={item.agencySelection === "keep"}
-                                      onChange={() =>
-                                        handleItemAgencyChange(item.id, "keep")
-                                      }
-                                      className="mt-0.5 h-3.5 w-3.5 border-zinc-300 text-brand focus:ring-brand dark:border-zinc-800 dark:focus:ring-emerald-500 cursor-pointer"
-                                    />
-                                    <span>
-                                      <strong className="font-bold text-zinc-850 dark:text-zinc-200">
-                                        Keep this book
-                                      </strong>{" "}
-                                      — Better off kept on your shelf or gifted
-                                      to a friend.
-                                    </span>
-                                  </label>
-                                  <label className="flex items-start gap-2.5 cursor-pointer py-1 rounded hover:bg-zinc-100/50 dark:hover:bg-zinc-800/30">
-                                    <input
-                                      type="radio"
-                                      name={`agency-${item.id}`}
-                                      value="donate"
-                                      checked={
-                                        item.agencySelection === "donate"
-                                      }
-                                      onChange={() =>
-                                        handleItemAgencyChange(
-                                          item.id,
-                                          "donate"
-                                        )
-                                      }
-                                      className="mt-0.5 h-3.5 w-3.5 border-zinc-300 text-brand focus:ring-brand dark:border-zinc-800 dark:focus:ring-emerald-500 cursor-pointer"
-                                    />
-                                    <span>
-                                      <strong className="font-bold text-zinc-850 dark:text-zinc-200">
-                                        Donate or rehome locally
-                                      </strong>{" "}
-                                      — Do not send; donate or recycle it
-                                      yourself (B2).
-                                    </span>
-                                  </label>
-                                  <label className="flex items-start gap-2.5 cursor-pointer py-1 rounded hover:bg-zinc-100/50 dark:hover:bg-zinc-800/30">
-                                    <input
-                                      type="radio"
-                                      name={`agency-${item.id}`}
-                                      value="send"
-                                      checked={item.agencySelection === "send"}
-                                      onChange={() =>
-                                        handleItemAgencyChange(item.id, "send")
-                                      }
-                                      className="mt-0.5 h-3.5 w-3.5 border-zinc-300 text-brand focus:ring-brand dark:border-zinc-800 dark:focus:ring-emerald-500 cursor-pointer"
-                                    />
-                                    <span>
-                                      <strong className="font-bold text-zinc-850 dark:text-zinc-200">
-                                        Send anyway
-                                      </strong>{" "}
-                                      — Send to Knihobot. If list prices
-                                      increase, you may still earn; otherwise,
-                                      it will be handled as a donation.
-                                    </span>
-                                  </label>
-                                </div>
-                              </fieldset>
-                            </div>
-                          )}
-
-                        {/* If normal/oversupplied book: allow toggling to Keep */}
-                        {!item.estimation.payoutMedian.isBelowThreshold &&
-                          item.estimation.hasEstimate && (
-                            <div className="mt-3 p-2 bg-zinc-200/40 dark:bg-zinc-855/40 rounded-lg text-xs flex items-center justify-between">
-                              <span className="text-zinc-500 dark:text-zinc-400">
-                                Do you want to keep this copy locally?
-                              </span>
-                              <label className="flex items-center gap-1.5 cursor-pointer text-zinc-700 dark:text-zinc-300">
-                                <input
-                                  type="checkbox"
-                                  checked={
-                                    item.agencySelection === "keep" ||
-                                    item.isOversuppliedKept
-                                  }
-                                  onChange={(e) => {
-                                    if (
-                                      item.estimation.demandStatus ===
-                                      "oversupplied"
-                                    ) {
-                                      handleOversuppliedKeepToggle(
-                                        item.id,
-                                        e.target.checked
-                                      );
-                                    } else {
-                                      handleItemAgencyChange(
-                                        item.id,
-                                        e.target.checked ? "keep" : "send"
-                                      );
-                                    }
-                                  }}
-                                  className="h-3.5 w-3.5 border-zinc-300 text-brand focus:ring-brand rounded cursor-pointer"
-                                />
-                                <span className="font-bold uppercase tracking-wider text-[10px]">
-                                  Keep Book
-                                </span>
-                              </label>
-                            </div>
-                          )}
+                        {/* Inline handlers for sub-threshold and normal/oversupplied books */}
+                        {renderAgencySelector(item)}
+                        {renderNormalKeepSelector(item)}
 
                         {/* No-data honest context card (B1 resolved) */}
                         {!item.estimation.hasEstimate && (
@@ -1093,7 +1081,7 @@ export default function Home() {
             </svg>
             <span>Show payout math breakdown</span>
           </summary>
-          <div className="mt-2 p-3 rounded-lg border border-zinc-100 bg-zinc-50/50 dark:border-zinc-850/50 dark:bg-zinc-955/20 space-y-2">
+          <div className="mt-2 p-3 rounded-lg border border-zinc-100 bg-zinc-50/50 dark:border-zinc-800/50 dark:bg-zinc-900/20 space-y-2">
             <div className="flex justify-between">
               <span>Min Estimate Math:</span>
               <span>
@@ -1165,7 +1153,7 @@ export default function Home() {
             <div className="mt-2 rounded-lg border border-zinc-200 overflow-hidden dark:border-zinc-800">
               <div className="max-h-48 overflow-y-auto">
                 <table className="w-full text-left border-collapse text-[10px]">
-                  <thead className="bg-zinc-50 text-zinc-500 font-semibold sticky top-0 dark:bg-zinc-955 border-b border-zinc-200 dark:border-zinc-800">
+                  <thead className="bg-zinc-50 text-zinc-500 font-semibold sticky top-0 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800">
                     <tr>
                       <th className="p-2">Condition</th>
                       <th className="p-2 text-right">Price</th>
@@ -1184,7 +1172,7 @@ export default function Home() {
                         <td className="p-2 text-right font-semibold text-zinc-900 dark:text-zinc-100">
                           {comp.listPriceCzk} CZK
                         </td>
-                        <td className="p-2 text-right text-zinc-505 dark:text-zinc-400">
+                        <td className="p-2 text-right text-zinc-500 dark:text-zinc-400">
                           {comp.activeCopies}
                         </td>
                       </tr>
@@ -1193,7 +1181,7 @@ export default function Home() {
                 </table>
               </div>
               {item.comparables.length > 20 && (
-                <div className="bg-zinc-50 border-t border-zinc-200 p-2 text-center text-[9px] text-zinc-500 font-medium dark:bg-zinc-955 dark:border-zinc-800">
+                <div className="bg-zinc-50 border-t border-zinc-200 p-2 text-center text-[9px] text-zinc-500 font-medium dark:bg-zinc-900 dark:border-zinc-800">
                   Showing top 20 of {item.comparables.length} comparables.
                 </div>
               )}
