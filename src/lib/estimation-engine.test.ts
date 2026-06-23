@@ -260,4 +260,41 @@ describe("estimation-engine", () => {
     expect(result.priceMedian).toBe(125);
     expect(result.priceMax).toBe(165);
   });
+
+  it("verifies demand-threshold boundary conditions (N1)", () => {
+    const comparables: Comparable[] = [
+      {
+        title: "Test",
+        author: "A",
+        listPriceCzk: 100,
+        condition: "good",
+        activeCopies: 1,
+        listedAt: "",
+      },
+    ];
+
+    // Boundary 1: activeCopies = 3 should be "high" demand status
+    const result3 = estimateBook(comparables, 3, "good");
+    expect(result3.activeCopies).toBe(3);
+    expect(result3.demandStatus).toBe("high");
+    expect(result3.demandWarning).toBe(false);
+
+    // Boundary 2: activeCopies = 4 should be "moderate" demand status
+    const result4 = estimateBook(comparables, 4, "good");
+    expect(result4.activeCopies).toBe(4);
+    expect(result4.demandStatus).toBe("moderate");
+    expect(result4.demandWarning).toBe(false);
+
+    // Boundary 3: activeCopies = 20 should be "moderate" demand status
+    const result20 = estimateBook(comparables, 20, "good");
+    expect(result20.activeCopies).toBe(20);
+    expect(result20.demandStatus).toBe("moderate");
+    expect(result20.demandWarning).toBe(false);
+
+    // Boundary 4: activeCopies = 21 should be "oversupplied" demand status and trigger warning
+    const result21 = estimateBook(comparables, 21, "good");
+    expect(result21.activeCopies).toBe(21);
+    expect(result21.demandStatus).toBe("oversupplied");
+    expect(result21.demandWarning).toBe(true);
+  });
 });

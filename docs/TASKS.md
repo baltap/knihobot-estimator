@@ -56,7 +56,7 @@ The brain. No React in here.
   - Unit tests cover: no comparables found, below threshold, oversupplied, missing
     condition, normal case.
 
-### T3 — Single-book estimate UI · `TODO`
+### T3 — Single-book estimate UI · `IN REVIEW`
 
 The core experience, for one book.
 
