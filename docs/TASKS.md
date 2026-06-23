@@ -68,7 +68,7 @@ The core experience, for one book.
   - Loading / empty ("no comparables found, here's our honest guess") / error states.
   - All four Trust Principles visibly upheld on this card.
 
-### T4 — Multi-book + aggregate + agency · `IN REVIEW`
+### T4 — Multi-book + aggregate + agency · `DONE`
 
 From one card to a shelf.
 
