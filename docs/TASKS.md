@@ -80,7 +80,7 @@ From one card to a shelf.
   - Honest split CTA: "send these" (deep-link to Knihobot's real flow) vs. "better
     kept/donated — here's why."
 
-### T5 — Brand polish, states & a11y pass · `IN REVIEW`
+### T5 — Brand polish, states & a11y pass · `DONE`
 
 Make it feel trustworthy and founder-demo ready.
 
