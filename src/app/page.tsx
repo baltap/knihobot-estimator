@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useTransition } from "react";
 import { getBookEstimate, EstimateResponse } from "@/app/actions";
 import { Button } from "@/components/ui/button";
+import { trackEvent } from "@/lib/analytics";
 
 interface ShelfItem {
   id: string; // unique ID for duplicate-support
@@ -18,6 +19,7 @@ interface ShelfItem {
   agencySelection: "keep" | "donate" | "send"; // defaults: "keep" if below-threshold, "send" if normal
   isOversuppliedKept?: boolean; // toggle to keep oversupplied book
   isUpdating?: boolean; // inline loader state
+  updateError?: string | null; // optional error state for inline re-estimation
 }
 
 export default function Home() {
@@ -43,24 +45,12 @@ export default function Home() {
 
   // Theme Sync Effect
   useEffect(() => {
-    // 1. Check system preference
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-    const systemTheme = mediaQuery.matches ? "dark" : "light";
-
-    // Check local storage or fallback to system
-    const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
-    const activeTheme = savedTheme || systemTheme;
-
-    if (activeTheme === "dark") {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-    setTimeout(() => {
-      setTheme(activeTheme);
-    }, 0);
+    const isDark = document.documentElement.classList.contains("dark");
+    /* eslint-disable-next-line react-hooks/set-state-in-effect */
+    setTheme(isDark ? "dark" : "light");
 
     // Listen for system changes
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
     const handleSystemThemeChange = (e: MediaQueryListEvent) => {
       if (!localStorage.getItem("theme")) {
         const nextTheme = e.matches ? "dark" : "light";
@@ -70,6 +60,7 @@ export default function Home() {
         } else {
           document.documentElement.classList.remove("dark");
         }
+        trackEvent("theme_toggled", { theme: nextTheme, trigger: "system" });
       }
     };
     mediaQuery.addEventListener("change", handleSystemThemeChange);
@@ -86,6 +77,7 @@ export default function Home() {
     } else {
       document.documentElement.classList.remove("dark");
     }
+    trackEvent("theme_toggled", { theme: nextTheme, trigger: "user" });
   };
 
   // Add book to shelf
@@ -111,6 +103,20 @@ export default function Home() {
 
         const response = await getBookEstimate(queryParams, formCondition);
 
+        // Track analytics event
+        trackEvent("book_added", {
+          query: queryStr,
+          is_isbn: isIsbn,
+          isbn: queryParams.isbn || undefined,
+          title: queryParams.title || undefined,
+          author: queryParams.author || undefined,
+          condition: formCondition,
+          has_estimate: response.estimation.hasEstimate,
+          payout_min: response.estimation.payoutMin.payout,
+          payout_max: response.estimation.payoutMax.payout,
+          demand_status: response.estimation.demandStatus,
+        });
+
         // Determine default agency options: sub-threshold books default to "keep", normal/oversupplied default to "send"
         const isBelowThreshold =
           response.estimation.payoutMedian.isBelowThreshold;
@@ -126,6 +132,7 @@ export default function Home() {
           agencySelection: defaultAgency,
           isOversuppliedKept: false,
           isUpdating: false,
+          updateError: null,
         };
 
         setShelf((prev) => [newShelfItem, ...prev]);
@@ -143,11 +150,16 @@ export default function Home() {
     itemId: string,
     newCondition: "new" | "verygood" | "good" | "worn"
   ) => {
-    // 1. Mark item as updating (loader spinner)
+    // 1. Mark item as updating (loader spinner) and clear previous error
     setShelf((prev) =>
       prev.map((item) =>
         item.id === itemId
-          ? { ...item, isUpdating: true, condition: newCondition }
+          ? {
+              ...item,
+              isUpdating: true,
+              condition: newCondition,
+              updateError: null,
+            }
           : item
       )
     );
@@ -177,18 +189,38 @@ export default function Home() {
               referenceStats: response.referenceStats,
               agencySelection: currentAgency,
               isUpdating: false,
+              updateError: null,
             };
           }
           return i;
         })
       );
+
+      trackEvent("condition_updated", {
+        item_id: itemId,
+        condition: newCondition,
+        success: true,
+      });
     } catch (err) {
       console.error("Failed to update item condition:", err);
       setShelf((prev) =>
         prev.map((item) =>
-          item.id === itemId ? { ...item, isUpdating: false } : item
+          item.id === itemId
+            ? {
+                ...item,
+                isUpdating: false,
+                updateError: "Failed to update estimate. Please try again.",
+              }
+            : item
         )
       );
+
+      trackEvent("condition_updated", {
+        item_id: itemId,
+        condition: newCondition,
+        success: false,
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
   };
 
@@ -198,29 +230,49 @@ export default function Home() {
     selection: "keep" | "donate" | "send"
   ) => {
     setShelf((prev) =>
-      prev.map((item) =>
-        item.id === itemId ? { ...item, agencySelection: selection } : item
-      )
+      prev.map((item) => {
+        if (item.id === itemId) {
+          trackEvent("agency_updated", {
+            item_id: itemId,
+            previous_selection: item.agencySelection,
+            selection,
+          });
+          return { ...item, agencySelection: selection };
+        }
+        return item;
+      })
     );
   };
 
   // Update oversupplied keep toggle
   const handleOversuppliedKeepToggle = (itemId: string, isKept: boolean) => {
     setShelf((prev) =>
-      prev.map((item) =>
-        item.id === itemId
-          ? {
-              ...item,
-              isOversuppliedKept: isKept,
-              agencySelection: isKept ? "keep" : "send",
-            }
-          : item
-      )
+      prev.map((item) => {
+        if (item.id === itemId) {
+          trackEvent("oversupplied_keep_toggled", {
+            item_id: itemId,
+            is_kept: isKept,
+          });
+          return {
+            ...item,
+            isOversuppliedKept: isKept,
+            agencySelection: isKept ? "keep" : "send",
+          };
+        }
+        return item;
+      })
     );
   };
 
   // Remove book from shelf
   const handleRemoveBook = (itemId: string) => {
+    const removedItem = shelf.find((item) => item.id === itemId);
+    if (removedItem) {
+      trackEvent("book_removed", {
+        item_id: itemId,
+        title: removedItem.comparables[0]?.title || removedItem.query.title,
+      });
+    }
     setShelf((prev) => prev.filter((item) => item.id !== itemId));
     setExpandedPeeks((prev) => {
       const updated = { ...prev };
@@ -231,10 +283,17 @@ export default function Home() {
 
   // Toggle peek panel for a shelf item
   const togglePeek = (itemId: string) => {
-    setExpandedPeeks((prev) => ({
-      ...prev,
-      [itemId]: !prev[itemId],
-    }));
+    setExpandedPeeks((prev) => {
+      const nextState = !prev[itemId];
+      trackEvent("peek_toggled", {
+        item_id: itemId,
+        is_open: nextState,
+      });
+      return {
+        ...prev,
+        [itemId]: nextState,
+      };
+    });
   };
 
   // ----------------------------------------------------
@@ -282,7 +341,7 @@ export default function Home() {
     return (
       <div className="mt-4 p-3 rounded-lg border border-amber-200/50 bg-amber-50/10 dark:border-amber-900/30 dark:bg-amber-950/10 text-xs">
         <fieldset className="space-y-2">
-          <legend className="block text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400 mb-1">
+          <legend className="block text-[10px] font-bold uppercase tracking-wider text-amber-800 dark:text-amber-400 mb-1">
             Below earning threshold — how would you like to handle this book?
           </legend>
           <div className="space-y-1">
@@ -357,7 +416,7 @@ export default function Home() {
       <div
         className={`mt-3 p-2 rounded-lg text-xs flex items-center justify-between ${
           isOversupplied
-            ? "bg-amber-50/20 border border-amber-100/30 text-amber-700 dark:text-amber-400"
+            ? "bg-amber-50/20 border border-amber-100/30 text-amber-800 dark:text-amber-400"
             : "bg-zinc-100/40 dark:bg-zinc-800/40 text-zinc-700 dark:text-zinc-300"
         }`}
       >
@@ -452,7 +511,7 @@ export default function Home() {
                 </svg>
               )}
             </button>
-            <div className="hidden sm:block text-xs text-zinc-500 dark:text-zinc-400 font-mono">
+            <div className="hidden sm:block text-xs text-zinc-600 dark:text-zinc-400 font-mono">
               MVP Demo · snapshot
             </div>
           </div>
@@ -483,7 +542,7 @@ export default function Home() {
               <div>
                 <label
                   htmlFor="search-query"
-                  className="block text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1"
+                  className="block text-[10px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1"
                 >
                   ISBN or Book Title
                 </label>
@@ -503,7 +562,7 @@ export default function Home() {
                 <div>
                   <label
                     htmlFor="author-query"
-                    className="block text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1"
+                    className="block text-[10px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1"
                   >
                     Author (Optional)
                   </label>
@@ -517,7 +576,7 @@ export default function Home() {
                   />
                 </div>
               ) : (
-                <div className="flex items-end text-xs text-zinc-400 dark:text-zinc-500 pb-3 font-medium">
+                <div className="flex items-end text-xs text-zinc-600 dark:text-zinc-400 pb-3 font-medium">
                   ISBN detected. Title lookup bypassed.
                 </div>
               )}
@@ -528,7 +587,7 @@ export default function Home() {
               <div>
                 <label
                   htmlFor="form-condition"
-                  className="block text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1"
+                  className="block text-[10px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1"
                 >
                   Condition
                 </label>
@@ -602,9 +661,9 @@ export default function Home() {
         <section aria-live="polite">
           {shelf.length === 0 ? (
             /* Empty Shelf State [N3] */
-            <div className="rounded-2xl border-2 border-dashed border-zinc-200 dark:border-zinc-800 p-12 text-center text-zinc-500 dark:text-zinc-400">
+            <div className="rounded-2xl border-2 border-dashed border-zinc-200 dark:border-zinc-800 p-12 text-center text-zinc-600 dark:text-zinc-400">
               <svg
-                className="h-10 w-10 mx-auto text-zinc-400 dark:text-zinc-600 mb-3"
+                className="h-10 w-10 mx-auto text-zinc-500 dark:text-zinc-600 mb-3"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -619,7 +678,7 @@ export default function Home() {
               <h3 className="font-bold text-sm text-zinc-700 dark:text-zinc-300">
                 Your shelf is empty
               </h3>
-              <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-1 max-w-xs mx-auto">
+              <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-1 max-w-xs mx-auto">
                 Search and add books above to estimate your shipment value.
               </p>
             </div>
@@ -631,7 +690,7 @@ export default function Home() {
               <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/60 border-l-4 border-l-brand dark:border-l-emerald-600">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
-                    <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+                    <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
                       Shipment Estimate Summary
                     </h2>
                     {/* Headline Scope (N2) */}
@@ -649,7 +708,7 @@ export default function Home() {
                     <p className="mt-3 text-3xl font-extrabold tracking-tight text-zinc-900 dark:text-white">
                       {totalPayoutMin}–{totalPayoutMax} CZK
                     </p>
-                    <p className="text-[10px] text-zinc-500 mt-1">
+                    <p className="text-[10px] text-zinc-600 dark:text-zinc-400 mt-1">
                       Estimated payout sum of the shipment bucket.
                     </p>
                   </div>
@@ -666,7 +725,7 @@ export default function Home() {
                       {sendBucket.length === 1 ? "book" : "books"} to Knihobot
                     </a>
                     {keepDonateBucket.length > 0 && (
-                      <div className="text-center text-[10px] text-zinc-500 dark:text-zinc-400 font-medium">
+                      <div className="text-center text-[10px] text-zinc-600 dark:text-zinc-400 font-medium">
                         {keepDonateBucket.length} kept/donated locally
                       </div>
                     )}
@@ -678,7 +737,7 @@ export default function Home() {
               {/* Split Buckets: 1. Shipment List (Send Bucket)        */}
               {/* ---------------------------------------------------- */}
               <div>
-                <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-3 px-1 flex items-center justify-between">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-3 px-1 flex items-center justify-between">
                   <span>
                     Shipment List ({sendBucket.length}{" "}
                     {sendBucket.length === 1 ? "book" : "books"})
@@ -689,7 +748,7 @@ export default function Home() {
                 </h3>
 
                 {sendBucket.length === 0 ? (
-                  <div className="rounded-xl border border-zinc-200 border-dashed p-6 text-center text-xs text-zinc-400 dark:border-zinc-800">
+                  <div className="rounded-xl border border-zinc-200 border-dashed p-6 text-center text-xs text-zinc-600 dark:border-zinc-400 dark:border-zinc-800">
                     No books in shipment list. Adjust agency choices below to
                     include them.
                   </div>
@@ -729,7 +788,7 @@ export default function Home() {
                             <h4 className="font-bold text-sm text-zinc-950 dark:text-white leading-tight">
                               {item.comparables[0]?.title || item.query.title}
                             </h4>
-                            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                            <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5">
                               by{" "}
                               {item.comparables[0]?.author ||
                                 item.query.author ||
@@ -752,7 +811,7 @@ export default function Home() {
                             {item.estimation.demandStatus ===
                               "oversupplied" && (
                               <span
-                                className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-950/50 dark:text-amber-400"
+                                className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800 dark:bg-amber-950/50 dark:text-amber-400"
                                 title="Knihobot already has many active copies. May be declined or donated."
                               >
                                 oversupplied ({item.estimation.activeCopies}) ⚠️
@@ -763,7 +822,7 @@ export default function Home() {
                             <button
                               onClick={() => handleRemoveBook(item.id)}
                               aria-label="Remove book"
-                              className="text-zinc-400 hover:text-red-500 p-1 rounded-md transition-colors cursor-pointer"
+                              className="text-zinc-500 hover:text-red-500 dark:text-zinc-400 p-1 rounded-md transition-colors cursor-pointer"
                             >
                               <svg
                                 className="h-4 w-4"
@@ -786,8 +845,14 @@ export default function Home() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 pt-3 border-t border-zinc-100 dark:border-zinc-800/50 text-xs">
                           {/* Inline condition selector (re-triggers action) */}
                           <div className="flex items-center gap-2">
-                            <span className="text-zinc-400">Condition:</span>
+                            <label
+                              htmlFor={`condition-${item.id}`}
+                              className="text-zinc-600 dark:text-zinc-400 font-semibold"
+                            >
+                              Condition:
+                            </label>
                             <select
+                              id={`condition-${item.id}`}
                               value={item.condition}
                               onChange={(e) =>
                                 handleItemConditionChange(
@@ -810,14 +875,16 @@ export default function Home() {
 
                           <div className="flex flex-col text-right justify-end sm:items-end">
                             <div className="flex justify-between sm:justify-end gap-1.5">
-                              <span className="text-zinc-400">Retail: </span>
+                              <span className="text-zinc-600 dark:text-zinc-400">
+                                Retail:{" "}
+                              </span>
                               <strong className="font-semibold text-zinc-950 dark:text-white">
                                 {item.estimation.priceMin}–
                                 {item.estimation.priceMax} CZK
                               </strong>
                             </div>
                             {/* Pluralize correctly (N4) */}
-                            <span className="block text-[10px] text-zinc-400 dark:text-zinc-500">
+                            <span className="block text-[10px] text-zinc-600 dark:text-zinc-400">
                               based on {item.estimation.comparableCount}{" "}
                               comparable{" "}
                               {item.estimation.comparableCount === 1
@@ -825,7 +892,9 @@ export default function Home() {
                                 : "copies"}
                             </span>
                             <div className="flex justify-between sm:justify-end gap-1.5 mt-1 sm:mt-0">
-                              <span className="text-zinc-400">Payout: </span>
+                              <span className="text-zinc-600 dark:text-zinc-400">
+                                Payout:{" "}
+                              </span>
                               <strong className="font-bold text-brand dark:text-emerald-400">
                                 {item.estimation.payoutMin.payout}–
                                 {item.estimation.payoutMax.payout} CZK
@@ -833,6 +902,15 @@ export default function Home() {
                             </div>
                           </div>
                         </div>
+
+                        {item.updateError && (
+                          <div
+                            className="mt-2 text-xs font-semibold text-red-500 bg-red-50/50 border border-red-200/50 p-2 rounded-lg dark:bg-red-950/10 dark:border-red-900/30"
+                            role="alert"
+                          >
+                            {item.updateError}
+                          </div>
+                        )}
 
                         {/* Inline handlers for sub-threshold and normal/oversupplied books */}
                         {renderAgencySelector(item)}
@@ -851,7 +929,7 @@ export default function Home() {
               {/* ---------------------------------------------------- */}
               {keepDonateBucket.length > 0 && (
                 <div className="pt-4 border-t border-zinc-200 dark:border-zinc-800">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-3 px-1 flex items-center justify-between">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-3 px-1 flex items-center justify-between">
                     <span>
                       Better Kept or Donated ({keepDonateBucket.length}{" "}
                       {keepDonateBucket.length === 1 ? "book" : "books"})
@@ -861,7 +939,7 @@ export default function Home() {
                     </span>
                   </h3>
 
-                  <div className="p-4 rounded-xl bg-zinc-100/40 border border-zinc-200/50 dark:bg-zinc-900/10 dark:border-zinc-800/80 mb-4 text-xs text-zinc-500 dark:text-zinc-400 leading-normal">
+                  <div className="p-4 rounded-xl bg-zinc-100/40 border border-zinc-200/50 dark:bg-zinc-900/10 dark:border-zinc-800/80 mb-4 text-xs text-zinc-600 dark:text-zinc-400 leading-normal">
                     <strong>Why these are excluded:</strong> These books are
                     estimated below the earning threshold (resulting in a 0 CZK
                     payout), or have a high oversupply warning and you decided
@@ -904,7 +982,7 @@ export default function Home() {
                             <h4 className="font-bold text-sm text-zinc-600 dark:text-zinc-300 leading-tight">
                               {item.comparables[0]?.title || item.query.title}
                             </h4>
-                            <p className="text-xs text-zinc-500 dark:text-zinc-500 mt-0.5">
+                            <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5">
                               by{" "}
                               {item.comparables[0]?.author ||
                                 item.query.author ||
@@ -929,7 +1007,7 @@ export default function Home() {
                                 )}
                                 {item.estimation.demandStatus ===
                                   "oversupplied" && (
-                                  <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-950/50 dark:text-amber-400">
+                                  <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800 dark:bg-amber-950/50 dark:text-amber-400">
                                     oversupplied ({item.estimation.activeCopies}
                                     ) ⚠️
                                   </span>
@@ -941,7 +1019,7 @@ export default function Home() {
                             <button
                               onClick={() => handleRemoveBook(item.id)}
                               aria-label="Remove book"
-                              className="text-zinc-400 hover:text-red-500 p-1 rounded-md transition-colors cursor-pointer"
+                              className="text-zinc-500 hover:text-red-500 dark:text-zinc-400 p-1 rounded-md transition-colors cursor-pointer"
                             >
                               <svg
                                 className="h-4 w-4"
@@ -964,8 +1042,14 @@ export default function Home() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 pt-3 border-t border-zinc-200/40 dark:border-zinc-800/40 text-xs">
                           {/* Inline condition selector (re-triggers action) */}
                           <div className="flex items-center gap-2">
-                            <span className="text-zinc-400">Condition:</span>
+                            <label
+                              htmlFor={`condition-${item.id}`}
+                              className="text-zinc-600 dark:text-zinc-400 font-semibold"
+                            >
+                              Condition:
+                            </label>
                             <select
+                              id={`condition-${item.id}`}
                               value={item.condition}
                               onChange={(e) =>
                                 handleItemConditionChange(
@@ -990,7 +1074,7 @@ export default function Home() {
                             {item.estimation.hasEstimate ? (
                               <>
                                 <div className="flex justify-between sm:justify-end gap-1.5">
-                                  <span className="text-zinc-400">
+                                  <span className="text-zinc-600 dark:text-zinc-400">
                                     Retail:{" "}
                                   </span>
                                   <strong className="font-semibold text-zinc-950 dark:text-white">
@@ -998,7 +1082,7 @@ export default function Home() {
                                     {item.estimation.priceMax} CZK
                                   </strong>
                                 </div>
-                                <span className="block text-[10px] text-zinc-400 dark:text-zinc-500">
+                                <span className="block text-[10px] text-zinc-600 dark:text-zinc-400">
                                   based on {item.estimation.comparableCount}{" "}
                                   comparable{" "}
                                   {item.estimation.comparableCount === 1
@@ -1006,20 +1090,30 @@ export default function Home() {
                                     : "copies"}
                                 </span>
                                 <div className="flex justify-between sm:justify-end gap-1.5 mt-1 sm:mt-0">
-                                  <span className="text-zinc-400 text-amber-700 dark:text-amber-500 font-bold">
+                                  <span className="text-amber-800 dark:text-amber-400 font-bold">
                                     Below limit
                                   </span>
                                 </div>
                               </>
                             ) : (
                               <div>
-                                <span className="text-zinc-400 font-semibold italic">
+                                <span className="text-zinc-600 dark:text-zinc-400 font-semibold italic">
                                   No comparables available
                                 </span>
                               </div>
                             )}
                           </div>
                         </div>
+
+                        {item.updateError && (
+                          <div
+                            className="mt-2 text-xs font-semibold text-red-500 bg-red-50/50 border border-red-200/50 p-2 rounded-lg dark:bg-red-950/10 dark:border-red-900/30"
+                            role="alert"
+                          >
+                            {item.updateError}
+                          </div>
+                        )}
+
                         {/* Inline handlers for sub-threshold and normal/oversupplied books */}
                         {renderAgencySelector(item)}
                         {renderNormalKeepSelector(item)}
@@ -1027,10 +1121,10 @@ export default function Home() {
                         {/* No-data honest context card (B1 resolved) */}
                         {!item.estimation.hasEstimate && (
                           <div className="mt-4 p-4 rounded-lg border border-zinc-200 bg-zinc-50/50 dark:border-zinc-800/80 dark:bg-zinc-950/20 space-y-2">
-                            <h5 className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+                            <h5 className="text-[10px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
                               General Used Book Reference Context
                             </h5>
-                            <p className="text-[10px] text-zinc-500 dark:text-zinc-400 leading-normal">
+                            <p className="text-[10px] text-zinc-600 dark:text-zinc-400 leading-normal">
                               We have no comparables for this title in our
                               snapshot. For context, typical used books on
                               Knihobot list for **{item.referenceStats.p25Price}
@@ -1064,10 +1158,10 @@ export default function Home() {
     return (
       <div className="mt-3 border-t border-zinc-100 dark:border-zinc-800/50 pt-2 flex flex-col gap-2">
         {/* Math explanation (Principle 2) */}
-        <details className="group/details text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
+        <details className="group/details text-[11px] font-medium text-zinc-600 dark:text-zinc-400">
           <summary className="cursor-pointer select-none py-1 hover:text-zinc-800 dark:hover:text-zinc-200 list-none flex items-center gap-1 outline-none">
             <svg
-              className="h-3 w-3 transition-transform group-open/details:rotate-90 text-zinc-400"
+              className="h-3 w-3 transition-transform group-open/details:rotate-90 text-zinc-500 dark:text-zinc-400"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -1086,7 +1180,7 @@ export default function Home() {
               <span>Min Estimate Math:</span>
               <span>
                 {item.estimation.payoutMin.isBelowThreshold ? (
-                  <span className="text-amber-600 dark:text-amber-400">
+                  <span className="text-amber-800 dark:text-amber-400 font-semibold">
                     Below threshold (50 CZK) → 0 CZK payout
                   </span>
                 ) : (
@@ -1106,7 +1200,7 @@ export default function Home() {
               <span>Max Estimate Math:</span>
               <span>
                 {item.estimation.payoutMax.isBelowThreshold ? (
-                  <span className="text-amber-600 dark:text-amber-400">
+                  <span className="text-amber-800 dark:text-amber-400 font-semibold">
                     Below threshold (50 CZK) → 0 CZK payout
                   </span>
                 ) : (
@@ -1130,8 +1224,9 @@ export default function Home() {
           <button
             type="button"
             aria-expanded={isPeekOpen}
+            aria-controls={`peek-${item.id}`}
             onClick={() => togglePeek(item.id)}
-            className="flex items-center gap-1 py-1 hover:text-zinc-800 dark:hover:text-zinc-200 text-[11px] font-semibold text-zinc-500 outline-none transition-colors cursor-pointer"
+            className="flex items-center gap-1 py-1 hover:text-zinc-800 dark:hover:text-zinc-200 text-[11px] font-semibold text-zinc-600 dark:text-zinc-400 outline-none transition-colors cursor-pointer"
           >
             <svg
               className={`h-3 w-3 transform transition-transform duration-200 ${isPeekOpen ? "rotate-90" : ""}`}
@@ -1150,10 +1245,13 @@ export default function Home() {
           </button>
 
           {isPeekOpen && (
-            <div className="mt-2 rounded-lg border border-zinc-200 overflow-hidden dark:border-zinc-800">
+            <div
+              id={`peek-${item.id}`}
+              className="mt-2 rounded-lg border border-zinc-200 overflow-hidden dark:border-zinc-800"
+            >
               <div className="max-h-48 overflow-y-auto">
                 <table className="w-full text-left border-collapse text-[10px]">
-                  <thead className="bg-zinc-50 text-zinc-500 font-semibold sticky top-0 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800">
+                  <thead className="bg-zinc-50 text-zinc-600 dark:text-zinc-400 font-semibold sticky top-0 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800">
                     <tr>
                       <th className="p-2">Condition</th>
                       <th className="p-2 text-right">Price</th>
@@ -1172,7 +1270,7 @@ export default function Home() {
                         <td className="p-2 text-right font-semibold text-zinc-900 dark:text-zinc-100">
                           {comp.listPriceCzk} CZK
                         </td>
-                        <td className="p-2 text-right text-zinc-500 dark:text-zinc-400">
+                        <td className="p-2 text-right text-zinc-600 dark:text-zinc-400">
                           {comp.activeCopies}
                         </td>
                       </tr>
@@ -1181,7 +1279,7 @@ export default function Home() {
                 </table>
               </div>
               {item.comparables.length > 20 && (
-                <div className="bg-zinc-50 border-t border-zinc-200 p-2 text-center text-[9px] text-zinc-500 font-medium dark:bg-zinc-900 dark:border-zinc-800">
+                <div className="bg-zinc-50 border-t border-zinc-200 p-2 text-center text-[9px] text-zinc-600 dark:text-zinc-400 font-medium dark:bg-zinc-900 dark:border-zinc-800">
                   Showing top 20 of {item.comparables.length} comparables.
                 </div>
               )}
