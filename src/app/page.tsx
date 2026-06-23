@@ -1,9 +1,15 @@
 "use client";
 
-import React, { useState, useEffect, useTransition } from "react";
+import React, { useState, useEffect, useTransition, useRef } from "react";
+import dynamic from "next/dynamic";
 import { getBookEstimate, EstimateResponse } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import { trackEvent } from "@/lib/analytics";
+
+const BarcodeScanner = dynamic(
+  () => import("@/components/barcode-scanner"),
+  { ssr: false }
+);
 
 interface ShelfItem {
   id: string; // unique ID for duplicate-support
@@ -25,6 +31,10 @@ interface ShelfItem {
 export default function Home() {
   // Theme state (Dark Mode) - N3
   const [theme, setTheme] = useState<"light" | "dark">("light");
+
+  // Barcode scanner states
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const audioContextRef = useRef<AudioContext | null>(null);
 
   // Form states
   const [searchQuery, setSearchQuery] = useState("");
@@ -80,7 +90,76 @@ export default function Home() {
     trackEvent("theme_toggled", { theme: nextTheme, trigger: "user" });
   };
 
-  // Add book to shelf
+  // Core function to fetch estimation, track analytics, and add item to shelf
+  const addBookToShelf = async (
+    queryStr: string,
+    authorVal: string | undefined,
+    conditionVal: "new" | "verygood" | "good" | "worn",
+    source: "manual" | "scan"
+  ): Promise<{
+    success: boolean;
+    title?: string;
+    payoutMin?: number;
+    payoutMax?: number;
+    isNoComparables?: boolean;
+    error?: string;
+  }> => {
+    // Detect ISBN by length (10 or 13 normalized digits) to allow numeric titles like "1984" - N5
+    const normalizedDigits = queryStr.replace(/[\s-]/g, "");
+    const isIsbn =
+      /^[0-9]{9}[0-9Xx]$/.test(normalizedDigits) ||
+      /^[0-9]{13}$/.test(normalizedDigits);
+    const queryParams = isIsbn
+      ? { isbn: queryStr }
+      : { title: queryStr, author: authorVal ? authorVal.trim() : undefined };
+
+    const response = await getBookEstimate(queryParams, conditionVal);
+
+    // Track analytics event with source attribution
+    trackEvent("book_added", {
+      query: queryStr,
+      is_isbn: isIsbn,
+      isbn: queryParams.isbn || undefined,
+      title: queryParams.title || undefined,
+      author: queryParams.author || undefined,
+      condition: conditionVal,
+      has_estimate: response.estimation.hasEstimate,
+      payout_min: response.estimation.payoutMin.payout,
+      payout_max: response.estimation.payoutMax.payout,
+      demand_status: response.estimation.demandStatus,
+      source,
+    });
+
+    // Determine default agency options: sub-threshold books default to "keep", normal/oversupplied default to "send"
+    const isBelowThreshold =
+      response.estimation.payoutMedian.isBelowThreshold;
+    const defaultAgency = isBelowThreshold ? "keep" : "send";
+
+    const newShelfItem: ShelfItem = {
+      id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+      query: queryParams,
+      estimation: response.estimation,
+      comparables: response.comparables,
+      referenceStats: response.referenceStats,
+      condition: conditionVal,
+      agencySelection: defaultAgency,
+      isOversuppliedKept: false,
+      isUpdating: false,
+      updateError: null,
+    };
+
+    setShelf((prev) => [newShelfItem, ...prev]);
+
+    return {
+      success: true,
+      title: response.comparables[0]?.title,
+      payoutMin: response.estimation.payoutMin.payout,
+      payoutMax: response.estimation.payoutMax.payout,
+      isNoComparables: !response.estimation.hasEstimate,
+    };
+  };
+
+  // Add book to shelf manually
   const handleAddBook = (e: React.FormEvent) => {
     e.preventDefault();
     const queryStr = searchQuery.trim();
@@ -92,50 +171,7 @@ export default function Home() {
 
     startTransition(async () => {
       try {
-        // Detect ISBN by length (10 or 13 normalized digits) to allow numeric titles like "1984" - N5
-        const normalizedDigits = queryStr.replace(/[\s-]/g, "");
-        const isIsbn =
-          /^[0-9]{9}[0-9Xx]$/.test(normalizedDigits) ||
-          /^[0-9]{13}$/.test(normalizedDigits);
-        const queryParams = isIsbn
-          ? { isbn: queryStr }
-          : { title: queryStr, author: authorQuery.trim() || undefined };
-
-        const response = await getBookEstimate(queryParams, formCondition);
-
-        // Track analytics event
-        trackEvent("book_added", {
-          query: queryStr,
-          is_isbn: isIsbn,
-          isbn: queryParams.isbn || undefined,
-          title: queryParams.title || undefined,
-          author: queryParams.author || undefined,
-          condition: formCondition,
-          has_estimate: response.estimation.hasEstimate,
-          payout_min: response.estimation.payoutMin.payout,
-          payout_max: response.estimation.payoutMax.payout,
-          demand_status: response.estimation.demandStatus,
-        });
-
-        // Determine default agency options: sub-threshold books default to "keep", normal/oversupplied default to "send"
-        const isBelowThreshold =
-          response.estimation.payoutMedian.isBelowThreshold;
-        const defaultAgency = isBelowThreshold ? "keep" : "send";
-
-        const newShelfItem: ShelfItem = {
-          id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-          query: queryParams,
-          estimation: response.estimation,
-          comparables: response.comparables,
-          referenceStats: response.referenceStats,
-          condition: formCondition,
-          agencySelection: defaultAgency,
-          isOversuppliedKept: false,
-          isUpdating: false,
-          updateError: null,
-        };
-
-        setShelf((prev) => [newShelfItem, ...prev]);
+        await addBookToShelf(queryStr, authorQuery, formCondition, "manual");
         setSearchQuery("");
         setAuthorQuery("");
       } catch (err) {
@@ -143,6 +179,37 @@ export default function Home() {
         console.error(err);
       }
     });
+  };
+
+  // Open barcode scanner modal (initializing audio context on click gesture)
+  const handleOpenScanner = () => {
+    if (!audioContextRef.current) {
+      const AudioContextClass =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      if (AudioContextClass) {
+        audioContextRef.current = new AudioContextClass();
+      }
+    }
+    if (audioContextRef.current && audioContextRef.current.state === "suspended") {
+      audioContextRef.current.resume();
+    }
+    setIsScannerOpen(true);
+    trackEvent("scanner_opened", { condition: formCondition });
+  };
+
+  // Barcode scanner scan callback
+  const handleBarcodeScan = async (isbn: string) => {
+    try {
+      const result = await addBookToShelf(isbn, undefined, formCondition, "scan");
+      return result;
+    } catch (err) {
+      console.error("Barcode scan lookup error:", err);
+      return {
+        success: false,
+        error: "Lookup failed. This ISBN could not be estimated.",
+      };
+    }
   };
 
   // Recalculate estimate inline when condition changes for an item on the shelf
@@ -546,15 +613,43 @@ export default function Home() {
                 >
                   ISBN or Book Title
                 </label>
-                <input
-                  id="search-query"
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="e.g. 9788024910086 or Tajemství"
-                  className="w-full rounded-lg border border-zinc-200 bg-zinc-50/50 px-3 py-2 text-sm placeholder-zinc-400 outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white dark:focus:border-emerald-500 dark:focus:ring-emerald-500/20 transition-all font-medium"
-                  aria-required="true"
-                />
+                <div className="flex gap-2">
+                  <input
+                    id="search-query"
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="e.g. 9788024910086 or Tajemství"
+                    className="flex-1 rounded-lg border border-zinc-200 bg-zinc-50/50 px-3 py-2 text-sm placeholder-zinc-400 outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white dark:focus:border-emerald-500 dark:focus:ring-emerald-500/20 transition-all font-medium"
+                    aria-required="true"
+                  />
+                  <Button
+                    type="button"
+                    onClick={handleOpenScanner}
+                    variant="outline"
+                    className="px-3 border-zinc-200 text-zinc-700 hover:bg-zinc-100 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-800 shrink-0 h-[38px] cursor-pointer"
+                    title="Scan book barcode with camera"
+                  >
+                    <svg
+                      className="h-5 w-5 text-brand dark:text-emerald-500"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z"
+                      />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z"
+                      />
+                    </svg>
+                  </Button>
+                </div>
               </div>
 
               {/* Author (Only visible if not searching purely by ISBN) */}
@@ -1147,6 +1242,15 @@ export default function Home() {
           )}
         </section>
       </main>
+
+      {isScannerOpen && (
+        <BarcodeScanner
+          onScan={handleBarcodeScan}
+          onClose={() => setIsScannerOpen(false)}
+          audioContextRef={audioContextRef}
+          condition={formCondition}
+        />
+      )}
     </div>
   );
 
