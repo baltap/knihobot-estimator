@@ -26,7 +26,7 @@ Stand up the project so everything after it has a home.
   - **No** Vercel / Docker / hosting / cloud-DB config of any kind.
   - `.env.example` committed; real secrets ignored.
 
-### T1 — Catalog snapshot + `CatalogRepository` · `IN REVIEW`
+### T1 — Catalog snapshot + `CatalogRepository` · `DONE`
 
 The data foundation. Everything downstream depends on it, so de-risk it first.
 
