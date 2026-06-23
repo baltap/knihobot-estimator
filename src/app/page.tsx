@@ -11,6 +11,11 @@ const BarcodeScanner = dynamic(
   { ssr: false }
 );
 
+const SpineScanner = dynamic(
+  () => import("@/components/spine-scanner"),
+  { ssr: false }
+);
+
 interface ShelfItem {
   id: string; // unique ID for duplicate-support
   query: {
@@ -35,6 +40,9 @@ export default function Home() {
   // Barcode scanner states
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const audioContextRef = useRef<AudioContext | null>(null);
+
+  // Spine AI scanner states
+  const [isSpineScannerOpen, setIsSpineScannerOpen] = useState(false);
 
   // Form states
   const [searchQuery, setSearchQuery] = useState("");
@@ -95,7 +103,7 @@ export default function Home() {
     queryStr: string,
     authorVal: string | undefined,
     conditionVal: "new" | "verygood" | "good" | "worn",
-    source: "manual" | "scan"
+    source: "manual" | "scan" | "spine"
   ): Promise<{
     success: boolean;
     title?: string;
@@ -209,6 +217,20 @@ export default function Home() {
         success: false,
         error: "Lookup failed. This ISBN could not be estimated.",
       };
+    }
+  };
+
+  // Batch add books scanned via spine AI vision (N6)
+  const handleSpineScanBatchAdd = async (
+    books: { title: string; author: string }[]
+  ) => {
+    // Loop and add books one by one reusing the shared logic
+    for (const book of books) {
+      try {
+        await addBookToShelf(book.title, book.author, formCondition, "spine");
+      } catch (err) {
+        console.error("Error adding batch item from spine scan:", book.title, err);
+      }
     }
   };
 
@@ -648,6 +670,34 @@ export default function Home() {
                         d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z"
                       />
                     </svg>
+                  </Button>
+
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setIsSpineScannerOpen(true);
+                      trackEvent("spine_scanner_opened", { condition: formCondition });
+                    }}
+                    variant="outline"
+                    className="px-3 border-zinc-200 text-zinc-700 hover:bg-zinc-100 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-800 shrink-0 h-[38px] cursor-pointer flex items-center gap-1.5"
+                    title="Scan book spines with AI vision (AI Beta)"
+                  >
+                    <svg
+                      className="h-5 w-5 text-brand dark:text-emerald-500"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M9.813 15.904L9 21l-.813-5.096L3 15l5.096-.813L9 9l.813 5.096L15 15l-5.187.904zM18 10.5l-.375 2.625L15 13.5l2.625.375L18 16.5l.375-2.625L21 13.5l-2.625-.375L18 10.5z"
+                      />
+                    </svg>
+                    <span className="text-[9px] font-extrabold uppercase bg-brand/10 dark:bg-emerald-500/10 text-brand dark:text-emerald-400 px-1.5 py-0.5 rounded tracking-wider whitespace-nowrap border border-brand/20 dark:border-emerald-500/20">
+                      AI Beta
+                    </span>
                   </Button>
                 </div>
               </div>
@@ -1248,6 +1298,14 @@ export default function Home() {
           onScan={handleBarcodeScan}
           onClose={() => setIsScannerOpen(false)}
           audioContextRef={audioContextRef}
+          condition={formCondition}
+        />
+      )}
+
+      {isSpineScannerOpen && (
+        <SpineScanner
+          onAddBooks={handleSpineScanBatchAdd}
+          onClose={() => setIsSpineScannerOpen(false)}
           condition={formCondition}
         />
       )}

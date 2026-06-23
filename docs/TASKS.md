@@ -100,7 +100,7 @@ Make it feel trustworthy and founder-demo ready.
 - Camera → ISBN → estimate, with manual fallback. Must fail gracefully on desktop /
   denied-permission. The reliable "wow."
 
-### S2 — Spine-photo → AI vision → titles · `TODO`
+### S2 — Spine-photo → AI vision → titles · `DONE`
 
 - Photograph spines → vision model extracts titles → estimates. Label "AI beta"; a
   live flake must never break the MVP path. (Mirrors Knihobot's real selling flow.)
