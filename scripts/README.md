@@ -8,7 +8,7 @@ This folder contains a standalone, polite web scraper script that collects book 
 2. **Next.js Hydration Parsing:** Instead of parsing brittle DOM elements, the scraper extracts the full data payload from the embedded Next.js JSON state (`props.pageProps.componentProps.listingDebug.items`).
 3. **Data Extraction:** Parses titles, authors, ISBNs, list prices, conditions (mapped to SPEC states), and true stock counts (`activeCopies`).
 4. **Local Caching:** Raw HTML responses are saved in the `.cache/` folder (gitignored). Subsequent runs will load pages instantly from the cache, preventing duplicate network hits.
-5. **Politeness:** Runs sequentially (concurrency 1) with a 1-second delay between fetches when query cache is bypassed. Respects robots.txt rules and uses a standard browser User-Agent.
+5. **Politeness:** Runs sequentially (concurrency 1) with a 1-second delay between fetches when query cache is bypassed. Checks and logs robots.txt rules and uses a standard browser User-Agent.
 
 ## Usage
 

@@ -40,7 +40,7 @@ The data foundation. Everything downstream depends on it, so de-risk it first.
   - `Comparable` shape matches SPEC §8; condition mapped to Knihobot's grades.
   - Short README note on how to (re)build the snapshot.
 
-### T2 — Pricing + commission + demand engine (pure, tested) · `TODO`
+### T2 — Pricing + commission + demand engine (pure, tested) · `IN REVIEW`
 
 The brain. No React in here.
 
