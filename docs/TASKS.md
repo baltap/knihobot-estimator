@@ -13,7 +13,7 @@ that depends on it.
 
 ## MVP
 
-### T0 — Repo scaffold · `IN REVIEW`
+### T0 — Repo scaffold · `DONE`
 
 Stand up the project so everything after it has a home.
 
