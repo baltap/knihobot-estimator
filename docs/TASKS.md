@@ -95,7 +95,7 @@ Make it feel trustworthy and founder-demo ready.
 
 ## Stretch (only after MVP is DONE; each its own task)
 
-### S1 — Barcode scan input · `IN REVIEW`
+### S1 — Barcode scan input · `DONE`
 
 - Camera → ISBN → estimate, with manual fallback. Must fail gracefully on desktop /
   denied-permission. The reliable "wow."
