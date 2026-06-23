@@ -14,7 +14,9 @@ that depends on it.
 ## MVP
 
 ### T0 — Repo scaffold · `IN REVIEW`
+
 Stand up the project so everything after it has a home.
+
 - **Why:** a clean, conventional base; no surprises later.
 - **Acceptance:**
   - Next.js (App Router) + TypeScript + Tailwind + shadcn/ui initialised.
@@ -25,7 +27,9 @@ Stand up the project so everything after it has a home.
   - `.env.example` committed; real secrets ignored.
 
 ### T1 — Catalog snapshot + `CatalogRepository` · `TODO`
+
 The data foundation. Everything downstream depends on it, so de-risk it first.
+
 - **Why:** credible estimates need real comparable prices and supply counts.
 - **Acceptance:**
   - A standalone, one-shot Puppeteer script collects a few thousand public listings
@@ -37,7 +41,9 @@ The data foundation. Everything downstream depends on it, so de-risk it first.
   - Short README note on how to (re)build the snapshot.
 
 ### T2 — Pricing + commission + demand engine (pure, tested) · `TODO`
+
 The brain. No React in here.
+
 - **Why:** this is where credibility and the Trust Principles are enforced in logic.
 - **Acceptance:**
   - Price estimate = median of comparables + condition multiplier, returned as a
@@ -51,7 +57,9 @@ The brain. No React in here.
     condition, normal case.
 
 ### T3 — Single-book estimate UI · `TODO`
+
 The core experience, for one book.
+
 - **Why:** prove the whole value prop on a single card before scaling to many.
 - **Acceptance:**
   - Add a book by ISBN or title search → a result card showing: price **range** +
@@ -61,7 +69,9 @@ The core experience, for one book.
   - All four Trust Principles visibly upheld on this card.
 
 ### T4 — Multi-book + aggregate + agency · `TODO`
+
 From one card to a shelf.
+
 - **Why:** the real user has a pile, and the headline number is the hook.
 - **Acceptance:**
   - Add several books; see them listed; an aggregate headline payout **range**.
@@ -71,7 +81,9 @@ From one card to a shelf.
     kept/donated — here's why."
 
 ### T5 — Brand polish, states & a11y pass · `TODO`
+
 Make it feel trustworthy and founder-demo ready.
+
 - **Why:** this is a tool about trust; the finish has to read honest, not salesy.
 - **Acceptance:**
   - Responsive; Knihobot green; calm, clean visual tone.
@@ -84,24 +96,29 @@ Make it feel trustworthy and founder-demo ready.
 ## Stretch (only after MVP is DONE; each its own task)
 
 ### S1 — Barcode scan input · `TODO`
+
 - Camera → ISBN → estimate, with manual fallback. Must fail gracefully on desktop /
   denied-permission. The reliable "wow."
 
 ### S2 — Spine-photo → AI vision → titles · `TODO`
+
 - Photograph spines → vision model extracts titles → estimates. Label "AI beta"; a
   live flake must never break the MVP path. (Mirrors Knihobot's real selling flow.)
 
 ### S3 — Seller dashboard screen · `TODO`
+
 - A thin second screen: status pipeline (received → priced → listed → sold → paid) +
   a payout countdown that names the exact date money lands. Directly answers the
   "slow, opaque payout / no notification" complaints.
 
 ### S4 — CZ / EN toggle · `TODO`
+
 - Language toggle; nods to the 9-market reality. Keep copy in a simple dictionary.
 
 ---
 
 ## Decisions log (Peter fills this in as we go)
+
 - Backend / storage choice: **UNDECIDED** — to be chosen mid-build.
 - Hero input (barcode vs. AI photo): **OPEN** — decide before S1/S2.
 - Commission rates confirmed against current Knihobot terms? **NOT YET** — verify.

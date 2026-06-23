@@ -12,6 +12,7 @@ export default function Home() {
             viewBox="0 0 24 24"
             stroke="currentColor"
             strokeWidth={2}
+            aria-hidden="true"
           >
             <path
               strokeLinecap="round"
@@ -26,14 +27,23 @@ export default function Home() {
         </h1>
 
         <p className="mb-8 text-base text-zinc-600 dark:text-zinc-400 sm:text-lg">
-          Knihobot Seller Estimator shows what your books could list for, what you&apos;ll actually receive, and flags oversupplied items upfront. Radical transparency from shelf to payout.
+          Knihobot Seller Estimator shows what your books could list for, what
+          you&apos;ll actually receive, and flags oversupplied items upfront.
+          Radical transparency from shelf to payout.
         </p>
 
         <div className="flex flex-col gap-3 sm:flex-row">
-          <Button size="lg" className="bg-brand text-brand-foreground hover:bg-brand/90 font-medium">
+          <Button
+            size="lg"
+            className="bg-brand text-brand-foreground hover:bg-brand/90 font-medium"
+          >
             Get Started
           </Button>
-          <Button variant="outline" size="lg" className="border-zinc-200 text-zinc-700 hover:bg-zinc-50 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-800 font-medium">
+          <Button
+            variant="outline"
+            size="lg"
+            className="border-zinc-200 text-zinc-700 hover:bg-zinc-50 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-800 font-medium"
+          >
             How it Works
           </Button>
         </div>
