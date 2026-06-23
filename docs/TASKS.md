@@ -13,7 +13,7 @@ that depends on it.
 
 ## MVP
 
-### T0 — Repo scaffold · `TODO`
+### T0 — Repo scaffold · `IN REVIEW`
 Stand up the project so everything after it has a home.
 - **Why:** a clean, conventional base; no surprises later.
 - **Acceptance:**
