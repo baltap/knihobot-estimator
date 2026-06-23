@@ -68,7 +68,7 @@ The core experience, for one book.
   - Loading / empty ("no comparables found, here's our honest guess") / error states.
   - All four Trust Principles visibly upheld on this card.
 
-### T4 — Multi-book + aggregate + agency · `TODO`
+### T4 — Multi-book + aggregate + agency · `IN REVIEW`
 
 From one card to a shelf.
 
@@ -121,4 +121,4 @@ Make it feel trustworthy and founder-demo ready.
 
 - Backend / storage choice: **UNDECIDED** — to be chosen mid-build.
 - Hero input (barcode vs. AI photo): **OPEN** — decide before S1/S2.
-- Commission rates confirmed against current Knihobot terms? **NOT YET** — verify.
+- Commission rates confirmed against current Knihobot terms? **YES** — confirmed (60% share minus 29 CZK fee)

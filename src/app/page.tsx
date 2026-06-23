@@ -1,68 +1,275 @@
 "use client";
 
-import React, { useState, useTransition } from "react";
+import React, { useState, useEffect, useTransition } from "react";
 import { getBookEstimate, EstimateResponse } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 
+interface ShelfItem {
+  id: string; // unique ID for duplicate-support
+  query: {
+    title?: string;
+    author?: string;
+    isbn?: string;
+  };
+  estimation: EstimateResponse["estimation"];
+  comparables: EstimateResponse["comparables"];
+  referenceStats: EstimateResponse["referenceStats"];
+  condition: "new" | "verygood" | "good" | "worn";
+  agencySelection: "keep" | "donate" | "send"; // defaults: "keep" if below-threshold, "send" if normal
+  isOversuppliedKept?: boolean; // toggle to keep oversupplied book
+  isUpdating?: boolean; // inline loader state
+}
+
 export default function Home() {
+  // Theme state (Dark Mode) - N3
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+
   // Form states
   const [searchQuery, setSearchQuery] = useState("");
   const [authorQuery, setAuthorQuery] = useState("");
-  const [condition, setCondition] = useState<
+  const [formCondition, setFormCondition] = useState<
     "new" | "verygood" | "good" | "worn"
   >("good");
 
-  // Estimation and display states
+  // Shelf & Action states
+  const [shelf, setShelf] = useState<ShelfItem[]>([]);
   const [isPending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<EstimateResponse | null>(null);
-  const [isPeekOpen, setIsPeekOpen] = useState(false);
-  const [agencySelection, setAgencySelection] = useState<
-    "keep" | "donate" | "send"
-  >("keep");
+  const [formError, setFormError] = useState<string | null>(null);
 
-  const handleEstimate = (
-    clearPrevious = true,
-    overrideCondition?: "new" | "verygood" | "good" | "worn"
-  ) => {
+  // Expanded peek panels by shelf item ID
+  const [expandedPeeks, setExpandedPeeks] = useState<Record<string, boolean>>(
+    {}
+  );
+
+  // Theme Sync Effect
+  useEffect(() => {
+    // 1. Check system preference
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const systemTheme = mediaQuery.matches ? "dark" : "light";
+
+    // Check local storage or fallback to system
+    const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
+    const activeTheme = savedTheme || systemTheme;
+
+    if (activeTheme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+    setTimeout(() => {
+      setTheme(activeTheme);
+    }, 0);
+
+    // Listen for system changes
+    const handleSystemThemeChange = (e: MediaQueryListEvent) => {
+      if (!localStorage.getItem("theme")) {
+        const nextTheme = e.matches ? "dark" : "light";
+        setTheme(nextTheme);
+        if (nextTheme === "dark") {
+          document.documentElement.classList.add("dark");
+        } else {
+          document.documentElement.classList.remove("dark");
+        }
+      }
+    };
+    mediaQuery.addEventListener("change", handleSystemThemeChange);
+    return () =>
+      mediaQuery.removeEventListener("change", handleSystemThemeChange);
+  }, []);
+
+  const toggleTheme = () => {
+    const nextTheme = theme === "light" ? "dark" : "light";
+    setTheme(nextTheme);
+    localStorage.setItem("theme", nextTheme);
+    if (nextTheme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  };
+
+  // Add book to shelf
+  const handleAddBook = (e: React.FormEvent) => {
+    e.preventDefault();
     const queryStr = searchQuery.trim();
     if (!queryStr) {
-      setError("Please enter a title or ISBN to estimate.");
+      setFormError("Please enter a title or ISBN to estimate.");
       return;
     }
-    setError(null);
-    if (clearPrevious) {
-      setResult(null);
-      setIsPeekOpen(false);
-    }
-
-    const activeCondition = overrideCondition || condition;
+    setFormError(null);
 
     startTransition(async () => {
       try {
-        // Detect if search query looks like an ISBN (only digits, hyphens, spaces)
-        const isIsbn = /^[0-9\s-]+$/.test(queryStr);
+        // Detect ISBN by length (10 or 13 normalized digits) to allow numeric titles like "1984" - N5
+        const normalizedDigits = queryStr.replace(/[\s-]/g, "");
+        const isIsbn =
+          /^[0-9]{9}[0-9Xx]$/.test(normalizedDigits) ||
+          /^[0-9]{13}$/.test(normalizedDigits);
         const queryParams = isIsbn
           ? { isbn: queryStr }
           : { title: queryStr, author: authorQuery.trim() || undefined };
 
-        const response = await getBookEstimate(queryParams, activeCondition);
-        setResult(response);
-        // Reset agency selection to default "keep" when new below-threshold book is estimated
-        if (response.estimation.payoutMedian.offerAgency) {
-          setAgencySelection("keep");
-        }
+        const response = await getBookEstimate(queryParams, formCondition);
+
+        // Determine default agency options: sub-threshold books default to "keep", normal/oversupplied default to "send"
+        const isBelowThreshold =
+          response.estimation.payoutMedian.isBelowThreshold;
+        const defaultAgency = isBelowThreshold ? "keep" : "send";
+
+        const newShelfItem: ShelfItem = {
+          id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+          query: queryParams,
+          estimation: response.estimation,
+          comparables: response.comparables,
+          referenceStats: response.referenceStats,
+          condition: formCondition,
+          agencySelection: defaultAgency,
+          isOversuppliedKept: false,
+          isUpdating: false,
+        };
+
+        setShelf((prev) => [newShelfItem, ...prev]);
+        setSearchQuery("");
+        setAuthorQuery("");
       } catch (err) {
-        setError("Failed to fetch estimate. Please try again.");
+        setFormError("Failed to fetch estimate. Please try again.");
         console.error(err);
       }
     });
   };
 
-  const handleFormSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    handleEstimate(true);
+  // Recalculate estimate inline when condition changes for an item on the shelf
+  const handleItemConditionChange = async (
+    itemId: string,
+    newCondition: "new" | "verygood" | "good" | "worn"
+  ) => {
+    // 1. Mark item as updating (loader spinner)
+    setShelf((prev) =>
+      prev.map((item) =>
+        item.id === itemId
+          ? { ...item, isUpdating: true, condition: newCondition }
+          : item
+      )
+    );
+
+    try {
+      const item = shelf.find((i) => i.id === itemId);
+      if (!item) return;
+
+      const response = await getBookEstimate(item.query, newCondition);
+
+      setShelf((prev) =>
+        prev.map((i) => {
+          if (i.id === itemId) {
+            // Update estimation data. Also adjust default agency if below-threshold status flipped
+            const isBelowThreshold =
+              response.estimation.payoutMedian.isBelowThreshold;
+            let currentAgency = i.agencySelection;
+            if (isBelowThreshold && currentAgency === "send") {
+              currentAgency = "keep"; // flip default to keep
+            } else if (!isBelowThreshold && currentAgency === "keep") {
+              currentAgency = "send"; // flip default to send
+            }
+            return {
+              ...i,
+              estimation: response.estimation,
+              comparables: response.comparables,
+              referenceStats: response.referenceStats,
+              agencySelection: currentAgency,
+              isUpdating: false,
+            };
+          }
+          return i;
+        })
+      );
+    } catch (err) {
+      console.error("Failed to update item condition:", err);
+      setShelf((prev) =>
+        prev.map((item) =>
+          item.id === itemId ? { ...item, isUpdating: false } : item
+        )
+      );
+    }
   };
+
+  // Update agency selection on a shelf item
+  const handleItemAgencyChange = (
+    itemId: string,
+    selection: "keep" | "donate" | "send"
+  ) => {
+    setShelf((prev) =>
+      prev.map((item) =>
+        item.id === itemId ? { ...item, agencySelection: selection } : item
+      )
+    );
+  };
+
+  // Update oversupplied keep toggle
+  const handleOversuppliedKeepToggle = (itemId: string, isKept: boolean) => {
+    setShelf((prev) =>
+      prev.map((item) =>
+        item.id === itemId
+          ? {
+              ...item,
+              isOversuppliedKept: isKept,
+              agencySelection: isKept ? "keep" : "send",
+            }
+          : item
+      )
+    );
+  };
+
+  // Remove book from shelf
+  const handleRemoveBook = (itemId: string) => {
+    setShelf((prev) => prev.filter((item) => item.id !== itemId));
+    setExpandedPeeks((prev) => {
+      const updated = { ...prev };
+      delete updated[itemId];
+      return updated;
+    });
+  };
+
+  // Toggle peek panel for a shelf item
+  const togglePeek = (itemId: string) => {
+    setExpandedPeeks((prev) => ({
+      ...prev,
+      [itemId]: !prev[itemId],
+    }));
+  };
+
+  // ----------------------------------------------------
+  // Aggregate Calculations (Send vs Keep/Donate Buckets)
+  // ----------------------------------------------------
+
+  // Send bucket includes:
+  // - Books where hasEstimate is true AND (isBelowThreshold is false OR agencySelection is "send")
+  //   AND it is NOT an oversupplied book that the user chose to keep.
+  // Note: if hasEstimate is false, it goes to Keep/Donate (context card) because we have no reliable data.
+  const sendBucket = shelf.filter((item) => {
+    if (!item.estimation.hasEstimate) return false;
+    const isBelowThreshold = item.estimation.payoutMedian.isBelowThreshold;
+    const isOversupplied = item.estimation.demandStatus === "oversupplied";
+
+    if (isBelowThreshold && item.agencySelection !== "send") return false;
+    if (!isBelowThreshold && item.isOversuppliedKept && isOversupplied)
+      return false;
+    if (!isBelowThreshold && item.agencySelection === "keep") return false; // normal kept book
+
+    return true;
+  });
+
+  // Keep / Donate bucket includes everything else
+  const keepDonateBucket = shelf.filter((item) => !sendBucket.includes(item));
+
+  // Sum up expected payout ranges for the Send bucket
+  const totalPayoutMin = sendBucket.reduce(
+    (sum, item) => sum + item.estimation.payoutMin.payout,
+    0
+  );
+  const totalPayoutMax = sendBucket.reduce(
+    (sum, item) => sum + item.estimation.payoutMax.payout,
+    0
+  );
 
   return (
     <div className="min-h-screen bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-50 font-sans transition-colors duration-200">
@@ -86,8 +293,49 @@ export default function Home() {
             </svg>
             <span>Knihobot Seller Estimator</span>
           </div>
-          <div className="text-xs text-zinc-500 dark:text-zinc-400 font-mono">
-            MVP Demo · offline snapshot
+
+          <div className="flex items-center gap-4">
+            {/* Theme Toggle Button (N3) */}
+            <button
+              onClick={toggleTheme}
+              aria-label="Toggle theme"
+              className="p-2 rounded-lg border border-zinc-200 text-zinc-600 hover:bg-zinc-100 focus:outline-none focus:ring-2 focus:ring-brand/30 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-800 cursor-pointer"
+            >
+              {theme === "light" ? (
+                // Moon Icon
+                <svg
+                  className="h-4.5 w-4.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+                  />
+                </svg>
+              ) : (
+                // Sun Icon
+                <svg
+                  className="h-4.5 w-4.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.364l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z"
+                  />
+                </svg>
+              )}
+            </button>
+            <div className="hidden sm:block text-xs text-zinc-500 dark:text-zinc-400 font-mono">
+              MVP Demo · snapshot
+            </div>
           </div>
         </div>
       </header>
@@ -95,87 +343,90 @@ export default function Home() {
       {/* Main container */}
       <main className="mx-auto max-w-2xl px-6 py-12 sm:py-16">
         {/* Value Prop Hero Section */}
-        <section className="text-center mb-10 sm:mb-12">
+        <section className="text-center mb-8">
           <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl text-zinc-950 dark:text-white">
             Find out what your books are worth — before you send them.
           </h1>
-          <p className="mt-4 text-sm sm:text-base text-zinc-600 dark:text-zinc-400 max-w-xl mx-auto">
-            Get transparent price ranges, itemized payout calculations, and
-            stock warnings directly from Knihobot&apos;s catalog listings. Zero
-            commitment required.
+          <p className="mt-3 text-sm sm:text-base text-zinc-600 dark:text-zinc-400 max-w-xl mx-auto">
+            Build your shelf list below. Get transparent price ranges, itemized
+            payout calculations, and stock warnings.
           </p>
         </section>
 
-        {/* Form Container (Glassmorphic card) */}
+        {/* Add Book Input Form */}
         <section className="rounded-2xl border border-zinc-200/80 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/60 dark:backdrop-blur-md mb-8">
-          <form onSubmit={handleFormSubmit} className="space-y-5">
-            <div>
-              <label
-                htmlFor="search-query"
-                className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2"
-              >
-                ISBN or Book Title
-              </label>
-              <input
-                id="search-query"
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="e.g. 9788024910086 or Tajemství"
-                className="w-full rounded-lg border border-zinc-200 bg-zinc-50/50 px-4 py-3 text-sm placeholder-zinc-400 outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white dark:focus:border-emerald-500 dark:focus:ring-emerald-500/20 transition-all font-medium"
-                aria-required="true"
-              />
-            </div>
+          <form onSubmit={handleAddBook} className="space-y-4">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-300">
+              Add Book to Estimate Shelf
+            </h2>
 
-            {/* Author (Only visible if not searching purely by ISBN) */}
-            {!/^[0-9\s-]+$/.test(searchQuery.trim()) && (
-              <div className="transition-all duration-200 ease-in-out">
-                <label
-                  htmlFor="author-query"
-                  className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2"
-                >
-                  Author Name (Optional)
-                </label>
-                <input
-                  id="author-query"
-                  type="text"
-                  value={authorQuery}
-                  onChange={(e) => setAuthorQuery(e.target.value)}
-                  placeholder="e.g. Rhonda Byrne"
-                  className="w-full rounded-lg border border-zinc-200 bg-zinc-50/50 px-4 py-3 text-sm placeholder-zinc-400 outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white dark:focus:border-emerald-500 dark:focus:ring-emerald-500/20 transition-all font-medium"
-                />
-              </div>
-            )}
-
-            {/* Condition and Action in a responsive row */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label
-                  htmlFor="condition-select"
-                  className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2"
+                  htmlFor="search-query"
+                  className="block text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1"
                 >
-                  Book Condition
+                  ISBN or Book Title
+                </label>
+                <input
+                  id="search-query"
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="e.g. 9788024910086 or Tajemství"
+                  className="w-full rounded-lg border border-zinc-250 bg-zinc-50/50 px-3 py-2 text-sm placeholder-zinc-400 outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white dark:focus:border-emerald-500 dark:focus:ring-emerald-500/20 transition-all font-medium"
+                  aria-required="true"
+                />
+              </div>
+
+              {/* Author (Only visible if not searching purely by ISBN) */}
+              {!/^[0-9\s-]+$/.test(searchQuery.trim()) ? (
+                <div>
+                  <label
+                    htmlFor="author-query"
+                    className="block text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1"
+                  >
+                    Author (Optional)
+                  </label>
+                  <input
+                    id="author-query"
+                    type="text"
+                    value={authorQuery}
+                    onChange={(e) => setAuthorQuery(e.target.value)}
+                    placeholder="e.g. Rhonda Byrne"
+                    className="w-full rounded-lg border border-zinc-250 bg-zinc-50/50 px-3 py-2 text-sm placeholder-zinc-400 outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white dark:focus:border-emerald-500 dark:focus:ring-emerald-500/20 transition-all font-medium"
+                  />
+                </div>
+              ) : (
+                <div className="flex items-end text-xs text-zinc-400 dark:text-zinc-500 pb-3 font-medium">
+                  ISBN detected. Title lookup bypassed.
+                </div>
+              )}
+            </div>
+
+            {/* Condition and Submit Action Row */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label
+                  htmlFor="form-condition"
+                  className="block text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1"
+                >
+                  Condition
                 </label>
                 <select
-                  id="condition-select"
-                  value={condition}
-                  onChange={(e) => {
-                    const newCondition = e.target.value as
-                      | "new"
-                      | "verygood"
-                      | "good"
-                      | "worn";
-                    setCondition(newCondition);
-                    if (result && searchQuery.trim().length > 0) {
-                      handleEstimate(false, newCondition);
-                    }
-                  }}
-                  className="w-full rounded-lg border border-zinc-200 bg-zinc-50/50 px-3 py-3 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white dark:focus:border-emerald-500 dark:focus:ring-emerald-500/20 transition-all font-medium text-zinc-800 dark:text-zinc-200"
+                  id="form-condition"
+                  value={formCondition}
+                  onChange={(e) =>
+                    setFormCondition(
+                      e.target.value as "new" | "verygood" | "good" | "worn"
+                    )
+                  }
+                  className="w-full h-[38px] rounded-lg border border-zinc-250 bg-zinc-50/50 px-2 py-1 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white dark:focus:border-emerald-500 dark:focus:ring-emerald-500/20 transition-all font-medium text-zinc-855 dark:text-zinc-200"
                 >
-                  <option value="new">Like New / Unread (1.2×</option>
-                  <option value="verygood">Very Good (1.1×</option>
-                  <option value="good">Good / Standard (1.0×</option>
-                  <option value="worn">Worn / Damaged (0.7×</option>
+                  <option value="new">Like New / Unread (1.2×)</option>
+                  <option value="verygood">Very Good (1.1×)</option>
+                  <option value="good">Good / Standard (1.0×)</option>
+                  <option value="worn">Worn / Damaged (0.7×)</option>
                 </select>
               </div>
 
@@ -184,13 +435,13 @@ export default function Home() {
                   type="submit"
                   disabled={isPending}
                   variant="default"
-                  size="lg"
-                  className="w-full h-[46px] bg-brand text-brand-foreground hover:bg-brand/95 font-semibold text-sm transition-all focus-visible:ring-2 focus-visible:ring-brand/50 disabled:opacity-50 dark:bg-emerald-700 dark:hover:bg-emerald-600 cursor-pointer"
+                  size="default"
+                  className="w-full h-[38px] bg-brand text-brand-foreground hover:bg-brand/95 font-semibold text-sm transition-all focus-visible:ring-2 focus-visible:ring-brand/50 disabled:opacity-50 dark:bg-emerald-700 dark:hover:bg-emerald-600 cursor-pointer"
                 >
                   {isPending ? (
-                    <span className="flex items-center justify-center gap-2">
+                    <span className="flex items-center justify-center gap-1.5">
                       <svg
-                        className="animate-spin h-4 w-4 text-white"
+                        className="animate-spin h-3.5 w-3.5 text-white"
                         fill="none"
                         viewBox="0 0 24 24"
                       >
@@ -208,437 +459,748 @@ export default function Home() {
                           d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                         />
                       </svg>
-                      Searching snapshot...
+                      Adding to Shelf...
                     </span>
                   ) : (
-                    "Estimate Value"
+                    "Add to Estimate Shelf"
                   )}
                 </Button>
               </div>
             </div>
 
-            {error && (
+            {formError && (
               <p
                 className="text-red-500 text-xs font-semibold mt-2"
                 role="alert"
               >
-                {error}
+                {formError}
               </p>
             )}
           </form>
         </section>
 
-        {/* Results Presentation Panel */}
+        {/* Shelf display */}
         <section aria-live="polite">
-          {/* Result Card when matched */}
-          {result && result.estimation.hasEstimate && (
-            <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm overflow-hidden dark:border-zinc-800 dark:bg-zinc-900/40">
-              {/* Header section with book info */}
-              <div className="border-b border-zinc-200 p-6 bg-zinc-50/50 dark:border-zinc-800 dark:bg-zinc-950/20">
+          {shelf.length === 0 ? (
+            /* Empty Shelf State [N3] */
+            <div className="rounded-2xl border-2 border-dashed border-zinc-205 dark:border-zinc-800 p-12 text-center text-zinc-500 dark:text-zinc-400">
+              <svg
+                className="h-10 w-10 mx-auto text-zinc-400 dark:text-zinc-600 mb-3"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={1.5}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+                />
+              </svg>
+              <h3 className="font-bold text-sm text-zinc-700 dark:text-zinc-300">
+                Your shelf is empty
+              </h3>
+              <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-1 max-w-xs mx-auto">
+                Search and add books above to estimate your shipment value.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* ---------------------------------------------------- */}
+              {/* Aggregate Headline Card (Shipment Value Summary)     */}
+              {/* ---------------------------------------------------- */}
+              <div className="rounded-2xl border border-zinc-250 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/60 border-l-4 border-l-brand dark:border-l-emerald-600">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
-                    <h2 className="text-lg font-bold text-zinc-950 dark:text-white leading-tight">
-                      {result.comparables[0]?.title || result.query.title}
+                    <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+                      Shipment Estimate Summary
                     </h2>
-                    <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
-                      by{" "}
-                      {result.comparables[0]?.author ||
-                        result.query.author ||
-                        "Unknown"}
+                    {/* Headline Scope (N2) */}
+                    <p className="text-sm font-semibold mt-1 text-zinc-700 dark:text-zinc-300">
+                      Sending{" "}
+                      <strong className="text-brand dark:text-emerald-400 font-bold">
+                        {sendBucket.length}
+                      </strong>{" "}
+                      of{" "}
+                      <strong className="font-semibold text-zinc-950 dark:text-white">
+                        {shelf.length}
+                      </strong>{" "}
+                      books on your shelf
+                    </p>
+                    <p className="mt-3 text-3xl font-extrabold tracking-tight text-zinc-955 dark:text-white">
+                      {totalPayoutMin}–{totalPayoutMax} CZK
+                    </p>
+                    <p className="text-[10px] text-zinc-450 mt-1">
+                      Estimated payout sum of the shipment bucket.
                     </p>
                   </div>
 
-                  {/* Stock Level/Demand Warning (Principle 3) */}
-                  <div>
-                    {result.estimation.demandStatus === "high" && (
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200/50 dark:border-emerald-800/30">
-                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        High Demand (low stock: {result.estimation.activeCopies}
-                        )
-                      </span>
-                    )}
-                    {result.estimation.demandStatus === "moderate" && (
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-semibold text-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-300">
-                        <span className="h-1.5 w-1.5 rounded-full bg-zinc-500" />
-                        Moderate Supply ({result.estimation.activeCopies}{" "}
-                        copies)
-                      </span>
-                    )}
-                    {result.estimation.demandStatus === "oversupplied" && (
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:bg-amber-950/50 dark:text-amber-400 border border-amber-200/50 dark:border-amber-800/30">
-                        <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                        Oversupplied ({result.estimation.activeCopies} copies)
-                      </span>
+                  {/* Split CTA buttons (B1) */}
+                  <div className="flex flex-col gap-2 shrink-0">
+                    <a
+                      href="https://knihobot.cz/prodej-knih"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex h-9 items-center justify-center rounded-lg bg-brand px-4 text-xs font-bold text-brand-foreground hover:bg-brand/95 transition-all text-center focus-visible:ring-2 focus-visible:ring-brand/50 dark:bg-emerald-700 dark:hover:bg-emerald-600 cursor-pointer"
+                    >
+                      Send {sendBucket.length} books to Knihobot
+                    </a>
+                    {keepDonateBucket.length > 0 && (
+                      <div className="text-center text-[10px] text-zinc-500 dark:text-zinc-400 font-medium">
+                        {keepDonateBucket.length} kept/donated locally
+                      </div>
                     )}
                   </div>
                 </div>
-
-                {result.estimation.demandWarning && (
-                  <div className="mt-4 p-3 rounded-lg bg-amber-50/50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/30 text-xs text-amber-700 dark:text-amber-400 flex items-start gap-2">
-                    <svg
-                      className="h-4 w-4 shrink-0 mt-0.5 text-amber-500"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={2.5}
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                      />
-                    </svg>
-                    <span>
-                      <strong>Oversupply warning:</strong> Knihobot already has
-                      many active copies. This listing may take a long time to
-                      sell, or might be declined/donated upon arrival.
-                    </span>
-                  </div>
-                )}
               </div>
 
-              {/* Estimate grid */}
-              <div className="p-6 space-y-6">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  {/* Estimated retail range (Principle 1) */}
-                  <div className="p-4 rounded-xl border border-zinc-100 bg-zinc-50/30 dark:border-zinc-800/50 dark:bg-zinc-900/20">
-                    <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
-                      Estimated List Price
-                    </h3>
-                    <p className="mt-2 text-2xl sm:text-3xl font-extrabold text-zinc-900 dark:text-white tracking-tight">
-                      {result.estimation.priceMin}–{result.estimation.priceMax}{" "}
-                      CZK
-                    </p>
-                    <p className="mt-1.5 text-xs text-zinc-500 dark:text-zinc-400 font-medium">
-                      Based on {result.estimation.comparableCount} comparable
-                      copies in snapshot.
-                    </p>
+              {/* ---------------------------------------------------- */}
+              {/* Split Buckets: 1. Shipment List (Send Bucket)        */}
+              {/* ---------------------------------------------------- */}
+              <div>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-3 px-1 flex items-center justify-between">
+                  <span>Shipment List ({sendBucket.length} books)</span>
+                  <span className="text-[10px] lowercase font-normal">
+                    Included in payout
+                  </span>
+                </h3>
+
+                {sendBucket.length === 0 ? (
+                  <div className="rounded-xl border border-zinc-200 border-dashed p-6 text-center text-xs text-zinc-400 dark:border-zinc-805">
+                    No books in shipment list. Adjust agency choices below to
+                    include them.
                   </div>
-
-                  {/* Estimated payout range */}
-                  <div className="p-4 rounded-xl border border-brand/10 bg-brand/5 dark:border-emerald-900/30 dark:bg-emerald-950/10">
-                    <h3 className="text-xs font-semibold uppercase tracking-wider text-brand dark:text-emerald-400">
-                      Expected Payout Range
-                    </h3>
-                    <p className="mt-2 text-2xl sm:text-3xl font-extrabold text-brand dark:text-emerald-400 tracking-tight">
-                      {result.estimation.payoutMin.payout}–
-                      {result.estimation.payoutMax.payout} CZK
-                    </p>
-                    <p className="mt-1.5 text-xs text-zinc-500 dark:text-zinc-400 font-medium">
-                      Payout is floored at 0 and itemized below.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Always Show the Math (Principle 2) */}
-                <div className="space-y-4">
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
-                    Commission Math Breakdown
-                  </h3>
-                  <div className="rounded-xl border border-zinc-100 bg-zinc-50/30 p-4 dark:border-zinc-800/50 dark:bg-zinc-900/20 text-xs sm:text-sm space-y-3 font-medium text-zinc-700 dark:text-zinc-300">
-                    {/* Minimum calc */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b border-zinc-200/50 pb-2 dark:border-zinc-800/50">
-                      <span className="text-zinc-500 dark:text-zinc-400">
-                        Min Estimate Math:
-                      </span>
-                      <span>
-                        {result.estimation.payoutMin.isBelowThreshold ? (
-                          <span className="text-amber-600 dark:text-amber-400 font-semibold">
-                            List price below 50 CZK threshold → 0 CZK payout
-                          </span>
-                        ) : (
-                          <span>
-                            {result.estimation.payoutMin.listPrice} CZK price ×{" "}
-                            {result.estimation.payoutMin.sellerSharePercent *
-                              100}
-                            % share (
-                            {result.estimation.payoutMin.sellerShareAmount} CZK)
-                            − {result.estimation.payoutMin.fixedFee} CZK fee ={" "}
-                            <strong className="text-zinc-950 dark:text-white font-bold">
-                              {result.estimation.payoutMin.payout} CZK payout
-                            </strong>
-                          </span>
-                        )}
-                      </span>
-                    </div>
-
-                    {/* Maximum calc */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 pt-1">
-                      <span className="text-zinc-500 dark:text-zinc-400">
-                        Max Estimate Math:
-                      </span>
-                      <span>
-                        {result.estimation.payoutMax.isBelowThreshold ? (
-                          <span className="text-amber-600 dark:text-amber-400 font-semibold">
-                            List price below 50 CZK threshold → 0 CZK payout
-                          </span>
-                        ) : (
-                          <span>
-                            {result.estimation.payoutMax.listPrice} CZK price ×{" "}
-                            {result.estimation.payoutMax.sellerSharePercent *
-                              100}
-                            % share (
-                            {result.estimation.payoutMax.sellerShareAmount} CZK)
-                            − {result.estimation.payoutMax.fixedFee} CZK fee ={" "}
-                            <strong className="text-brand dark:text-emerald-400 font-bold">
-                              {result.estimation.payoutMax.payout} CZK payout
-                            </strong>
-                          </span>
-                        )}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Below threshold agency selectors (Principle 4) */}
-                {result.estimation.payoutMedian.isBelowThreshold && (
-                  <div className="p-4 rounded-xl border border-amber-200/60 bg-amber-50/20 dark:border-amber-900/30 dark:bg-amber-950/10">
-                    <fieldset className="space-y-3">
-                      <legend className="text-xs font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-400 mb-2">
-                        Earn Less Choice — Give Agency on the Losers
-                      </legend>
-                      <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-normal mb-3">
-                        This book estimates below our earning threshold. What
-                        would you like to do if you send it?
-                      </p>
-                      <div className="space-y-2">
-                        <label className="flex items-start gap-3 cursor-pointer p-2 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-900/30">
-                          <input
-                            type="radio"
-                            name="agency-choice"
-                            value="keep"
-                            checked={agencySelection === "keep"}
-                            onChange={() => setAgencySelection("keep")}
-                            className="mt-1 h-4 w-4 border-zinc-300 text-brand focus:ring-brand dark:border-zinc-800 dark:focus:ring-emerald-500"
-                          />
-                          <span className="text-xs sm:text-sm">
-                            <strong className="font-bold text-zinc-900 dark:text-white">
-                              Keep this book
-                            </strong>{" "}
-                            — Better off kept on your shelf or gifted to a
-                            friend.
-                          </span>
-                        </label>
-                        <label className="flex items-start gap-3 cursor-pointer p-2 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-900/30">
-                          <input
-                            type="radio"
-                            name="agency-choice"
-                            value="donate"
-                            checked={agencySelection === "donate"}
-                            onChange={() => setAgencySelection("donate")}
-                            className="mt-1 h-4 w-4 border-zinc-300 text-brand focus:ring-brand dark:border-zinc-800 dark:focus:ring-emerald-500"
-                          />
-                          <span className="text-xs sm:text-sm">
-                            <strong className="font-bold text-zinc-900 dark:text-white">
-                              Donate on purpose
-                            </strong>{" "}
-                            — Send anyway, let Knihobot sell and donate proceeds
-                            to charity or recycle.
-                          </span>
-                        </label>
-                        <label className="flex items-start gap-3 cursor-pointer p-2 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-900/30">
-                          <input
-                            type="radio"
-                            name="agency-choice"
-                            value="send"
-                            checked={agencySelection === "send"}
-                            onChange={() => setAgencySelection("send")}
-                            className="mt-1 h-4 w-4 border-zinc-300 text-brand focus:ring-brand dark:border-zinc-800 dark:focus:ring-emerald-500"
-                          />
-                          <span className="text-xs sm:text-sm">
-                            <strong className="font-bold text-zinc-900 dark:text-white">
-                              Send anyway
-                            </strong>{" "}
-                            — Send it to Knihobot. If list prices increase, you
-                            may still earn; otherwise, it will be handled as a
-                            donation.
-                          </span>
-                        </label>
-                      </div>
-                    </fieldset>
-                  </div>
-                )}
-
-                {/* Expandable Comparables Peek (Principle 1) */}
-                <div className="border-t border-zinc-150 pt-4 dark:border-zinc-800">
-                  <button
-                    type="button"
-                    aria-expanded={isPeekOpen}
-                    aria-controls="comparables-peek-panel"
-                    onClick={() => setIsPeekOpen(!isPeekOpen)}
-                    className="flex w-full items-center justify-between py-2 text-xs font-semibold uppercase tracking-wider text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200 outline-none focus-visible:ring-2 focus-visible:ring-brand rounded-md px-1 transition-all cursor-pointer"
-                  >
-                    <span>
-                      Peek at comparable listings (
-                      {result.estimation.comparableCount})
-                    </span>
-                    <svg
-                      className={`h-4 w-4 transform transition-transform duration-200 ${isPeekOpen ? "rotate-180" : ""}`}
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={2.5}
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M19 9l-7 7-7-7"
-                      />
-                    </svg>
-                  </button>
-
-                  {isPeekOpen && (
-                    <div
-                      id="comparables-peek-panel"
-                      className="mt-4 transition-all duration-200"
-                    >
-                      <div className="rounded-xl border border-zinc-200 overflow-hidden dark:border-zinc-800">
-                        {/* Scrollable container capped at top 20 items (N5) */}
-                        <div className="max-h-64 overflow-y-auto">
-                          <table className="w-full text-left border-collapse text-xs">
-                            <thead className="bg-zinc-50 text-zinc-500 font-semibold sticky top-0 dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800">
-                              <tr>
-                                <th className="p-3">Title</th>
-                                <th className="p-3">Author</th>
-                                <th className="p-3">Condition</th>
-                                <th className="p-3 text-right">Price</th>
-                                <th className="p-3 text-right">Stock</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/50 dark:bg-zinc-900/10">
-                              {result.comparables
-                                .slice(0, 20)
-                                .map((comp, idx) => (
-                                  <tr
-                                    key={idx}
-                                    className="hover:bg-zinc-50/50 dark:hover:bg-zinc-950/20"
-                                  >
-                                    <td
-                                      className="p-3 font-medium text-zinc-900 dark:text-zinc-100 truncate max-w-[140px]"
-                                      title={comp.title}
-                                    >
-                                      {comp.title}
-                                    </td>
-                                    <td
-                                      className="p-3 text-zinc-500 dark:text-zinc-400 truncate max-w-[100px]"
-                                      title={comp.author}
-                                    >
-                                      {comp.author}
-                                    </td>
-                                    <td className="p-3">
-                                      <span className="capitalize px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 font-mono text-[10px]">
-                                        {comp.condition}
-                                      </span>
-                                    </td>
-                                    <td className="p-3 text-right font-semibold text-zinc-900 dark:text-zinc-100">
-                                      {comp.listPriceCzk} CZK
-                                    </td>
-                                    <td className="p-3 text-right text-zinc-500 dark:text-zinc-400">
-                                      {comp.activeCopies}
-                                    </td>
-                                  </tr>
-                                ))}
-                            </tbody>
-                          </table>
-                        </div>
-                        {result.comparables.length > 20 && (
-                          <div className="bg-zinc-50 border-t border-zinc-200 p-2.5 text-center text-[10px] text-zinc-500 font-medium dark:bg-zinc-950 dark:border-zinc-800">
-                            Showing top 20 of {result.comparables.length}{" "}
-                            comparables.
+                ) : (
+                  <div className="space-y-4">
+                    {sendBucket.map((item) => (
+                      <div
+                        key={item.id}
+                        className="relative rounded-xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/40"
+                      >
+                        {item.isUpdating && (
+                          <div className="absolute inset-0 bg-white/60 dark:bg-zinc-900/60 backdrop-blur-xs flex items-center justify-center z-10 rounded-xl">
+                            <svg
+                              className="animate-spin h-6 w-6 text-brand dark:text-emerald-500"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                            >
+                              <circle
+                                className="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                              />
+                              <path
+                                className="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                              />
+                            </svg>
                           </div>
                         )}
+
+                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                          <div>
+                            <h4 className="font-bold text-sm text-zinc-950 dark:text-white leading-tight">
+                              {item.comparables[0]?.title || item.query.title}
+                            </h4>
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                              by{" "}
+                              {item.comparables[0]?.author ||
+                                item.query.author ||
+                                "Unknown"}
+                            </p>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            {/* Stock warning badge remains visible on shelf item (N1) */}
+                            {item.estimation.demandStatus === "high" && (
+                              <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
+                                low stock ({item.estimation.activeCopies})
+                              </span>
+                            )}
+                            {item.estimation.demandStatus === "moderate" && (
+                              <span className="inline-flex items-center rounded-full bg-zinc-150 px-2 py-0.5 text-[10px] font-semibold text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                                supply: {item.estimation.activeCopies}
+                              </span>
+                            )}
+                            {item.estimation.demandStatus ===
+                              "oversupplied" && (
+                              <span
+                                className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-950/50 dark:text-amber-400"
+                                title="Knihobot already has many active copies. May be declined or donated."
+                              >
+                                oversupplied ({item.estimation.activeCopies}) ⚠️
+                              </span>
+                            )}
+
+                            {/* Remove button */}
+                            <button
+                              onClick={() => handleRemoveBook(item.id)}
+                              aria-label="Remove book"
+                              className="text-zinc-400 hover:text-red-500 p-1 rounded-md transition-colors cursor-pointer"
+                            >
+                              <svg
+                                className="h-4 w-4"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={2}
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Interactive fields row */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 pt-3 border-t border-zinc-100 dark:border-zinc-800/50 text-xs">
+                          {/* Inline condition selector (re-triggers action) */}
+                          <div className="flex items-center gap-2">
+                            <span className="text-zinc-400">Condition:</span>
+                            <select
+                              value={item.condition}
+                              onChange={(e) =>
+                                handleItemConditionChange(
+                                  item.id,
+                                  e.target.value as
+                                    | "new"
+                                    | "verygood"
+                                    | "good"
+                                    | "worn"
+                                )
+                              }
+                              className="rounded border border-zinc-200 bg-zinc-50/50 px-1.5 py-0.5 text-xs outline-none dark:border-zinc-800 dark:bg-zinc-955 font-medium text-zinc-800 dark:text-zinc-200"
+                            >
+                              <option value="new">Like New (1.2x)</option>
+                              <option value="verygood">Very Good (1.1x)</option>
+                              <option value="good">Good (1.0x)</option>
+                              <option value="worn">Worn (0.7x)</option>
+                            </select>
+                          </div>
+
+                          <div className="flex flex-col text-right justify-end sm:items-end">
+                            <div className="flex justify-between sm:justify-end gap-1.5">
+                              <span className="text-zinc-400">Retail: </span>
+                              <strong className="font-semibold text-zinc-950 dark:text-white">
+                                {item.estimation.priceMin}–
+                                {item.estimation.priceMax} CZK
+                              </strong>
+                            </div>
+                            {/* Pluralize correctly (N4) */}
+                            <span className="block text-[10px] text-zinc-400 dark:text-zinc-500">
+                              based on {item.estimation.comparableCount}{" "}
+                              comparable{" "}
+                              {item.estimation.comparableCount === 1
+                                ? "copy"
+                                : "copies"}
+                            </span>
+                            <div className="flex justify-between sm:justify-end gap-1.5 mt-1 sm:mt-0">
+                              <span className="text-zinc-400">Payout: </span>
+                              <strong className="font-bold text-brand dark:text-emerald-400">
+                                {item.estimation.payoutMin.payout}–
+                                {item.estimation.payoutMax.payout} CZK
+                              </strong>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* If normal/oversupplied book: allow toggling to Keep */}
+                        {item.estimation.demandStatus === "oversupplied" && (
+                          <div className="mt-3 p-2 bg-amber-50/20 border border-amber-100/30 rounded-lg text-xs text-amber-700 dark:text-amber-400 flex items-center justify-between">
+                            <span>
+                              High supply. Do you want to keep this copy locally
+                              instead?
+                            </span>
+                            <label className="flex items-center gap-1.5 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={item.isOversuppliedKept}
+                                onChange={(e) =>
+                                  handleOversuppliedKeepToggle(
+                                    item.id,
+                                    e.target.checked
+                                  )
+                                }
+                                className="h-3.5 w-3.5 border-zinc-300 text-brand focus:ring-brand rounded cursor-pointer"
+                              />
+                              <span className="font-bold uppercase tracking-wider text-[10px]">
+                                Keep Book
+                              </span>
+                            </label>
+                          </div>
+                        )}
+
+                        {/* Math & Peek Panel expandables */}
+                        {renderExpandables(item)}
                       </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Empty State / No-Data Fallback Card (B1 resolved) */}
-          {result && !result.estimation.hasEstimate && (
-            <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/40 space-y-6">
-              <div className="flex items-start gap-4">
-                <div className="p-3 rounded-full bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400 shrink-0">
-                  <svg
-                    className="h-6 w-6"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2.5}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                    />
-                  </svg>
-                </div>
-                <div>
-                  <h2 className="text-lg font-bold text-zinc-950 dark:text-white leading-tight">
-                    No Comparable Copies Found
-                  </h2>
-                  <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-2 leading-relaxed">
-                    We couldn&apos;t find any comparable copies of this book in
-                    our snapshot database, so we can&apos;t compute a specific
-                    estimate.
-                  </p>
-                </div>
-              </div>
-
-              {/* General Reference Context (Principle 1 & B1 resolved) */}
-              <div className="p-5 rounded-xl border border-zinc-200 bg-zinc-50/50 dark:border-zinc-800/80 dark:bg-zinc-950/30 space-y-3">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                  General Used Book Reference
-                </h3>
-                <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-normal">
-                  While we don&apos;t have data for this specific title, here
-                  are the typical list price statistics across all books in our
-                  catalog snapshot:
-                </p>
-                <div className="grid grid-cols-2 gap-4 pt-1 text-center sm:text-left">
-                  <div>
-                    <span className="block text-[10px] uppercase font-bold tracking-wider text-zinc-400">
-                      Typical List Price
-                    </span>
-                    <strong className="text-sm sm:text-base font-extrabold text-zinc-950 dark:text-white">
-                      {result.referenceStats.p25Price}–
-                      {result.referenceStats.p75Price} CZK
-                    </strong>
+                    ))}
                   </div>
-                  <div>
-                    <span className="block text-[10px] uppercase font-bold tracking-wider text-zinc-400">
-                      Typical Payout
-                    </span>
-                    <strong className="text-sm sm:text-base font-extrabold text-brand dark:text-emerald-400">
-                      {result.referenceStats.p25Payout}–
-                      {result.referenceStats.p75Payout} CZK
-                    </strong>
-                  </div>
-                </div>
-                <div className="text-[10px] text-zinc-400 dark:text-zinc-500 leading-normal border-t border-zinc-200/50 pt-2 dark:border-zinc-800/50">
-                  *Disclaimer: These are overall catalog statistics. Your
-                  book&apos;s actual quality, demand, and valuation may differ.
-                </div>
+                )}
               </div>
 
-              <div className="flex justify-end pt-2">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setResult(null);
-                    setSearchQuery("");
-                    setAuthorQuery("");
-                  }}
-                  className="text-xs border-zinc-200 text-zinc-700 hover:bg-zinc-50 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-800 font-medium"
-                >
-                  Search Another Book
-                </Button>
-              </div>
+              {/* ---------------------------------------------------- */}
+              {/* Split Buckets: 2. Kept or Donated (Local Handling)   */}
+              {/* ---------------------------------------------------- */}
+              {keepDonateBucket.length > 0 && (
+                <div className="pt-4 border-t border-zinc-200 dark:border-zinc-800">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-3 px-1 flex items-center justify-between">
+                    <span>
+                      Better Kept or Donated ({keepDonateBucket.length} books)
+                    </span>
+                    <span className="text-[10px] lowercase font-normal">
+                      Excluded from shipment
+                    </span>
+                  </h3>
+
+                  <div className="p-4 rounded-xl bg-zinc-150/40 border border-zinc-200/50 dark:bg-zinc-900/10 dark:border-zinc-800/80 mb-4 text-xs text-zinc-500 dark:text-zinc-400 leading-normal">
+                    <strong>Why these are excluded:</strong> These books are
+                    estimated below the earning threshold (resulting in a 0 CZK
+                    payout), or have a high oversupply warning and you decided
+                    to keep them locally to avoid potential decline or donation
+                    fees.
+                  </div>
+
+                  <div className="space-y-4">
+                    {keepDonateBucket.map((item) => (
+                      <div
+                        key={item.id}
+                        className="relative rounded-xl border border-zinc-200 bg-zinc-100/50 p-5 dark:border-zinc-800/50 dark:bg-zinc-900/10"
+                      >
+                        {item.isUpdating && (
+                          <div className="absolute inset-0 bg-white/60 dark:bg-zinc-900/60 backdrop-blur-xs flex items-center justify-center z-10 rounded-xl">
+                            <svg
+                              className="animate-spin h-6 w-6 text-brand dark:text-emerald-500"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                            >
+                              <circle
+                                className="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                              />
+                              <path
+                                className="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                              />
+                            </svg>
+                          </div>
+                        )}
+
+                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                          <div>
+                            <h4 className="font-bold text-sm text-zinc-650 dark:text-zinc-300 leading-tight">
+                              {item.comparables[0]?.title || item.query.title}
+                            </h4>
+                            <p className="text-xs text-zinc-505 dark:text-zinc-500 mt-0.5">
+                              by{" "}
+                              {item.comparables[0]?.author ||
+                                item.query.author ||
+                                "Unknown"}
+                            </p>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            {/* Demand badge (Suppressed entirely if hasEstimate is false - P3/N3) */}
+                            {item.estimation.hasEstimate && (
+                              <>
+                                {item.estimation.demandStatus === "high" && (
+                                  <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
+                                    low stock ({item.estimation.activeCopies})
+                                  </span>
+                                )}
+                                {item.estimation.demandStatus ===
+                                  "moderate" && (
+                                  <span className="inline-flex items-center rounded-full bg-zinc-150 px-2 py-0.5 text-[10px] font-semibold text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                                    supply: {item.estimation.activeCopies}
+                                  </span>
+                                )}
+                                {item.estimation.demandStatus ===
+                                  "oversupplied" && (
+                                  <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-950/50 dark:text-amber-400">
+                                    oversupplied ({item.estimation.activeCopies}
+                                    ) ⚠️
+                                  </span>
+                                )}
+                              </>
+                            )}
+
+                            {/* Remove button */}
+                            <button
+                              onClick={() => handleRemoveBook(item.id)}
+                              aria-label="Remove book"
+                              className="text-zinc-400 hover:text-red-500 p-1 rounded-md transition-colors cursor-pointer"
+                            >
+                              <svg
+                                className="h-4 w-4"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={2}
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Interactive fields row */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 pt-3 border-t border-zinc-200/40 dark:border-zinc-800/40 text-xs">
+                          {/* Inline condition selector (re-triggers action) */}
+                          <div className="flex items-center gap-2">
+                            <span className="text-zinc-400">Condition:</span>
+                            <select
+                              value={item.condition}
+                              onChange={(e) =>
+                                handleItemConditionChange(
+                                  item.id,
+                                  e.target.value as
+                                    | "new"
+                                    | "verygood"
+                                    | "good"
+                                    | "worn"
+                                )
+                              }
+                              className="rounded border border-zinc-200 bg-zinc-50/50 px-1.5 py-0.5 text-xs outline-none dark:border-zinc-800 dark:bg-zinc-950 font-medium text-zinc-800 dark:text-zinc-200"
+                            >
+                              <option value="new">Like New (1.2×)</option>
+                              <option value="verygood">Very Good (1.1×)</option>
+                              <option value="good">Good (1.0×)</option>
+                              <option value="worn">Worn (0.7×)</option>
+                            </select>
+                          </div>
+
+                          <div className="flex flex-col text-right justify-end sm:items-end">
+                            {item.estimation.hasEstimate ? (
+                              <>
+                                <div className="flex justify-between sm:justify-end gap-1.5">
+                                  <span className="text-zinc-400">
+                                    Retail:{" "}
+                                  </span>
+                                  <strong className="font-semibold text-zinc-950 dark:text-white">
+                                    {item.estimation.priceMin}–
+                                    {item.estimation.priceMax} CZK
+                                  </strong>
+                                </div>
+                                <span className="block text-[10px] text-zinc-400 dark:text-zinc-500">
+                                  based on {item.estimation.comparableCount}{" "}
+                                  comparable{" "}
+                                  {item.estimation.comparableCount === 1
+                                    ? "copy"
+                                    : "copies"}
+                                </span>
+                                <div className="flex justify-between sm:justify-end gap-1.5 mt-1 sm:mt-0">
+                                  <span className="text-zinc-400 text-amber-700 dark:text-amber-500 font-bold">
+                                    Below limit
+                                  </span>
+                                </div>
+                              </>
+                            ) : (
+                              <div>
+                                <span className="text-zinc-400 font-semibold italic">
+                                  No comparables available
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* If below-threshold: render radio group inline on card (Principle 4 / B2 resolved) */}
+                        {item.estimation.hasEstimate &&
+                          item.estimation.payoutMedian.isBelowThreshold && (
+                            <div className="mt-4 p-3 rounded-lg border border-amber-200/50 bg-amber-50/10 dark:border-amber-900/30 dark:bg-amber-950/10 text-xs">
+                              <fieldset className="space-y-2">
+                                <legend className="block text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400 mb-1">
+                                  Below earning threshold — how would you like
+                                  to handle this book? (N1 softened)
+                                </legend>
+                                <div className="space-y-1">
+                                  <label className="flex items-start gap-2.5 cursor-pointer py-1 rounded hover:bg-zinc-100/50 dark:hover:bg-zinc-800/30">
+                                    <input
+                                      type="radio"
+                                      name={`agency-${item.id}`}
+                                      value="keep"
+                                      checked={item.agencySelection === "keep"}
+                                      onChange={() =>
+                                        handleItemAgencyChange(item.id, "keep")
+                                      }
+                                      className="mt-0.5 h-3.5 w-3.5 border-zinc-300 text-brand focus:ring-brand dark:border-zinc-800 dark:focus:ring-emerald-500 cursor-pointer"
+                                    />
+                                    <span>
+                                      <strong className="font-bold text-zinc-850 dark:text-zinc-200">
+                                        Keep this book
+                                      </strong>{" "}
+                                      — Better off kept on your shelf or gifted
+                                      to a friend.
+                                    </span>
+                                  </label>
+                                  <label className="flex items-start gap-2.5 cursor-pointer py-1 rounded hover:bg-zinc-100/50 dark:hover:bg-zinc-800/30">
+                                    <input
+                                      type="radio"
+                                      name={`agency-${item.id}`}
+                                      value="donate"
+                                      checked={
+                                        item.agencySelection === "donate"
+                                      }
+                                      onChange={() =>
+                                        handleItemAgencyChange(
+                                          item.id,
+                                          "donate"
+                                        )
+                                      }
+                                      className="mt-0.5 h-3.5 w-3.5 border-zinc-300 text-brand focus:ring-brand dark:border-zinc-800 dark:focus:ring-emerald-500 cursor-pointer"
+                                    />
+                                    <span>
+                                      <strong className="font-bold text-zinc-850 dark:text-zinc-200">
+                                        Donate or rehome locally
+                                      </strong>{" "}
+                                      — Do not send; donate or recycle it
+                                      yourself (B2).
+                                    </span>
+                                  </label>
+                                  <label className="flex items-start gap-2.5 cursor-pointer py-1 rounded hover:bg-zinc-100/50 dark:hover:bg-zinc-800/30">
+                                    <input
+                                      type="radio"
+                                      name={`agency-${item.id}`}
+                                      value="send"
+                                      checked={item.agencySelection === "send"}
+                                      onChange={() =>
+                                        handleItemAgencyChange(item.id, "send")
+                                      }
+                                      className="mt-0.5 h-3.5 w-3.5 border-zinc-300 text-brand focus:ring-brand dark:border-zinc-800 dark:focus:ring-emerald-500 cursor-pointer"
+                                    />
+                                    <span>
+                                      <strong className="font-bold text-zinc-850 dark:text-zinc-200">
+                                        Send anyway
+                                      </strong>{" "}
+                                      — Send to Knihobot. If list prices
+                                      increase, you may still earn; otherwise,
+                                      it will be handled as a donation.
+                                    </span>
+                                  </label>
+                                </div>
+                              </fieldset>
+                            </div>
+                          )}
+
+                        {/* If normal/oversupplied book: allow toggling to Keep */}
+                        {!item.estimation.payoutMedian.isBelowThreshold &&
+                          item.estimation.hasEstimate && (
+                            <div className="mt-3 p-2 bg-zinc-200/40 dark:bg-zinc-855/40 rounded-lg text-xs flex items-center justify-between">
+                              <span className="text-zinc-500 dark:text-zinc-400">
+                                Do you want to keep this copy locally?
+                              </span>
+                              <label className="flex items-center gap-1.5 cursor-pointer text-zinc-700 dark:text-zinc-300">
+                                <input
+                                  type="checkbox"
+                                  checked={
+                                    item.agencySelection === "keep" ||
+                                    item.isOversuppliedKept
+                                  }
+                                  onChange={(e) => {
+                                    if (
+                                      item.estimation.demandStatus ===
+                                      "oversupplied"
+                                    ) {
+                                      handleOversuppliedKeepToggle(
+                                        item.id,
+                                        e.target.checked
+                                      );
+                                    } else {
+                                      handleItemAgencyChange(
+                                        item.id,
+                                        e.target.checked ? "keep" : "send"
+                                      );
+                                    }
+                                  }}
+                                  className="h-3.5 w-3.5 border-zinc-300 text-brand focus:ring-brand rounded cursor-pointer"
+                                />
+                                <span className="font-bold uppercase tracking-wider text-[10px]">
+                                  Keep Book
+                                </span>
+                              </label>
+                            </div>
+                          )}
+
+                        {/* No-data honest context card (B1 resolved) */}
+                        {!item.estimation.hasEstimate && (
+                          <div className="mt-4 p-4 rounded-lg border border-zinc-200 bg-zinc-50/50 dark:border-zinc-800/80 dark:bg-zinc-950/20 space-y-2">
+                            <h5 className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+                              General Used Book Reference Context
+                            </h5>
+                            <p className="text-[10px] text-zinc-500 dark:text-zinc-400 leading-normal">
+                              We have no comparables for this title in our
+                              snapshot. For context, typical used books on
+                              Knihobot list for **{item.referenceStats.p25Price}
+                              –{item.referenceStats.p75Price} CZK** (typical
+                              payout **{item.referenceStats.p25Payout}–
+                              {item.referenceStats.p75Payout} CZK**). Your
+                              book&apos;s actual value may differ.
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Math & Peek Panel expandables */}
+                        {renderExpandables(item)}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </section>
       </main>
     </div>
   );
+
+  // Helper to render math and comparables expandables on each card
+  function renderExpandables(item: ShelfItem) {
+    if (!item.estimation.hasEstimate) return null;
+    const isPeekOpen = !!expandedPeeks[item.id];
+
+    return (
+      <div className="mt-3 border-t border-zinc-100 dark:border-zinc-800/50 pt-2 flex flex-col gap-2">
+        {/* Math explanation (Principle 2) */}
+        <details className="group/details text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
+          <summary className="cursor-pointer select-none py-1 hover:text-zinc-800 dark:hover:text-zinc-200 list-none flex items-center gap-1 outline-none">
+            <svg
+              className="h-3 w-3 transition-transform group-open/details:rotate-90 text-zinc-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={3}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M9 5l7 7-7 7"
+              />
+            </svg>
+            <span>Show payout math breakdown</span>
+          </summary>
+          <div className="mt-2 p-3 rounded-lg border border-zinc-100 bg-zinc-50/50 dark:border-zinc-850/50 dark:bg-zinc-955/20 space-y-2">
+            <div className="flex justify-between">
+              <span>Min Estimate Math:</span>
+              <span>
+                {item.estimation.payoutMin.isBelowThreshold ? (
+                  <span className="text-amber-600 dark:text-amber-400">
+                    Below threshold (50 CZK) → 0 CZK payout
+                  </span>
+                ) : (
+                  <span>
+                    {item.estimation.payoutMin.listPrice} CZK ×{" "}
+                    {item.estimation.payoutMin.sellerSharePercent * 100}% (
+                    {item.estimation.payoutMin.sellerShareAmount} CZK) −{" "}
+                    {item.estimation.payoutMin.fixedFee} CZK fee ={" "}
+                    <strong>
+                      {item.estimation.payoutMin.payout} CZK payout
+                    </strong>
+                  </span>
+                )}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span>Max Estimate Math:</span>
+              <span>
+                {item.estimation.payoutMax.isBelowThreshold ? (
+                  <span className="text-amber-600 dark:text-amber-400">
+                    Below threshold (50 CZK) → 0 CZK payout
+                  </span>
+                ) : (
+                  <span>
+                    {item.estimation.payoutMax.listPrice} CZK ×{" "}
+                    {item.estimation.payoutMax.sellerSharePercent * 100}% (
+                    {item.estimation.payoutMax.sellerShareAmount} CZK) −{" "}
+                    {item.estimation.payoutMax.fixedFee} CZK fee ={" "}
+                    <strong>
+                      {item.estimation.payoutMax.payout} CZK payout
+                    </strong>
+                  </span>
+                )}
+              </span>
+            </div>
+          </div>
+        </details>
+
+        {/* Comparables Peek panel (Principle 1) */}
+        <div>
+          <button
+            type="button"
+            aria-expanded={isPeekOpen}
+            onClick={() => togglePeek(item.id)}
+            className="flex items-center gap-1 py-1 hover:text-zinc-800 dark:hover:text-zinc-200 text-[11px] font-semibold text-zinc-500 outline-none transition-colors cursor-pointer"
+          >
+            <svg
+              className={`h-3 w-3 transform transition-transform duration-200 ${isPeekOpen ? "rotate-90" : ""}`}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={3}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M9 5l7 7-7 7"
+              />
+            </svg>
+            <span>Peek at comparables ({item.estimation.comparableCount})</span>
+          </button>
+
+          {isPeekOpen && (
+            <div className="mt-2 rounded-lg border border-zinc-200 overflow-hidden dark:border-zinc-800">
+              <div className="max-h-48 overflow-y-auto">
+                <table className="w-full text-left border-collapse text-[10px]">
+                  <thead className="bg-zinc-50 text-zinc-500 font-semibold sticky top-0 dark:bg-zinc-955 border-b border-zinc-200 dark:border-zinc-800">
+                    <tr>
+                      <th className="p-2">Condition</th>
+                      <th className="p-2 text-right">Price</th>
+                      <th className="p-2 text-right">Stock</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/50 dark:bg-zinc-900/10">
+                    {item.comparables.slice(0, 20).map((comp, idx) => (
+                      <tr
+                        key={idx}
+                        className="hover:bg-zinc-50/50 dark:hover:bg-zinc-950/20"
+                      >
+                        <td className="p-2 capitalize font-mono text-[9px]">
+                          {comp.condition}
+                        </td>
+                        <td className="p-2 text-right font-semibold text-zinc-900 dark:text-zinc-100">
+                          {comp.listPriceCzk} CZK
+                        </td>
+                        <td className="p-2 text-right text-zinc-505 dark:text-zinc-400">
+                          {comp.activeCopies}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {item.comparables.length > 20 && (
+                <div className="bg-zinc-50 border-t border-zinc-200 p-2 text-center text-[9px] text-zinc-500 font-medium dark:bg-zinc-955 dark:border-zinc-800">
+                  Showing top 20 of {item.comparables.length} comparables.
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 }

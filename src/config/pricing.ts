@@ -1,7 +1,7 @@
 /**
  * Knihobot pricing, commission, and demand configurations.
- * Note: These rates and thresholds are illustrative defaults (assumptions to confirm)
- * and should be verified against current Knihobot terms before production.
+ * Note: Commission rates (COMMISSION) are confirmed against current Knihobot terms.
+ * Condition multipliers and demand thresholds remain assumptions to confirm.
  */
 
 export const COMMISSION = {
