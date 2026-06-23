@@ -35,6 +35,24 @@ const mockFixture: Comparable[] = [
     activeCopies: 3,
     listedAt: "2026-06-23T12:00:00.000Z",
   },
+  {
+    title: "Tajemství",
+    author: "Rhonda Byrne",
+    isbn: "9788024910086",
+    condition: "verygood",
+    listPriceCzk: 109,
+    activeCopies: 23,
+    listedAt: "2026-06-23T12:00:00.000Z",
+  },
+  {
+    title: "Manželovo tajemství",
+    author: "Liane Moriarty",
+    isbn: "9788024925899",
+    condition: "good",
+    listPriceCzk: 299,
+    activeCopies: 6,
+    listedAt: "2026-06-23T12:00:00.000Z",
+  },
 ];
 
 describe("normalizeString", () => {
@@ -78,10 +96,28 @@ describe("LocalCatalogRepository", () => {
       expect(results[0].title).toBe("Dívka ve vlaku");
     });
 
-    it("handles partial/fuzzy title match without diacritics", async () => {
-      const results = await repository.findComparables({ title: "drsnacka" });
+    it("handles partial/fuzzy title match without diacritics when author is provided", async () => {
+      const results = await repository.findComparables({
+        title: "drsnacka",
+        author: "Walliams",
+      });
       expect(results).toHaveLength(1);
       expect(results[0].title).toBe("Babička drsňačka");
+    });
+
+    it("does not match 'Manželovo tajemství' when querying only for title 'Tajemství' (regression test for B1)", async () => {
+      const results = await repository.findComparables({ title: "Tajemství" });
+      expect(results).toHaveLength(1);
+      expect(results[0].title).toBe("Tajemství");
+      expect(results[0].author).toBe("Rhonda Byrne");
+    });
+
+    it("requires exact title match if author is missing to prevent over-matching", async () => {
+      const results = await repository.findComparables({ title: "Babička" });
+      expect(results).toHaveLength(1);
+      expect(results[0].title).toBe("Babička");
+      const hasDrsnacka = results.some((r) => r.title === "Babička drsňačka");
+      expect(hasDrsnacka).toBe(false);
     });
 
     it("prioritizes ISBN matches even if title/author are in query", async () => {

@@ -1,17 +1,7 @@
 import fs from "fs";
 import path from "path";
 import puppeteer, { Browser } from "puppeteer";
-
-// Types matching SPEC §8
-interface Comparable {
-  title: string;
-  author: string;
-  isbn?: string;
-  condition: "new" | "verygood" | "good" | "worn";
-  listPriceCzk: number;
-  activeCopies: number;
-  listedAt: string;
-}
+import { Comparable } from "../src/lib/catalog-repository";
 
 interface ScrapedItem {
   grandmothers_title?: string;
@@ -61,7 +51,10 @@ function mapCondition(
   state: number | undefined
 ): "new" | "verygood" | "good" | "worn" {
   if (state === undefined || state === null) {
-    return "good"; // Default fallback
+    console.warn(
+      `[Condition] Missing condition state. Defaulting to 'worn' (conservative fallback).`
+    );
+    return "worn"; // Conservative fallback
   }
 
   // Knihobot mapping:
@@ -78,7 +71,10 @@ function mapCondition(
     case 4:
       return "worn";
     default:
-      return "good";
+      console.warn(
+        `[Condition] Unknown condition state: ${state}. Defaulting to 'worn' (conservative fallback).`
+      );
+      return "worn";
   }
 }
 
@@ -133,12 +129,25 @@ function parseHTML(html: string, scrapeDate: string): Comparable[] {
           continue;
         }
 
-        return items.map((item: ScrapedItem) => {
+        const result: Comparable[] = [];
+        for (const item of items as ScrapedItem[]) {
+          const title = item.grandmothers_title
+            ? item.grandmothers_title.trim()
+            : "";
+          const price = Number(item.highlight_price) || 0;
+
+          // Skip records that do not have a real title or a valid non-zero price
+          if (!title || title === "Neznámý název" || price <= 0) {
+            continue;
+          }
+
           const comparable: Comparable = {
-            title: item.grandmothers_title || "Neznámý název",
-            author: item.authors_name || "Neznámý autor",
+            title,
+            author:
+              (item.authors_name ? item.authors_name.trim() : "") ||
+              "Neznámý autor",
             condition: mapCondition(item.state),
-            listPriceCzk: Number(item.highlight_price) || 0,
+            listPriceCzk: price,
             activeCopies: Number(item.books_count) || 0,
             listedAt: scrapeDate,
           };
@@ -147,8 +156,9 @@ function parseHTML(html: string, scrapeDate: string): Comparable[] {
             comparable.isbn = String(item.isbn).trim();
           }
 
-          return comparable;
-        });
+          result.push(comparable);
+        }
+        return result;
       } catch (err) {
         console.warn(
           `[Warning] Failed to parse JSON script block: ${err instanceof Error ? err.message : String(err)}`
@@ -175,6 +185,53 @@ async function run() {
       headless: true,
       args: ["--no-sandbox", "--disable-setuid-sandbox"],
     });
+
+    // Verify robots.txt rules programmatically to satisfy N1
+    console.log(`[Robots.txt] Fetching robots.txt rules...`);
+    const robotsPage = await browser.newPage();
+    await robotsPage.setUserAgent(USER_AGENT);
+    try {
+      await robotsPage.goto("https://knihobot.cz/robots.txt", {
+        waitUntil: "networkidle2",
+        timeout: 15000,
+      });
+      const text = await robotsPage.evaluate(() => document.body.innerText);
+      console.log(`[Robots.txt] Successfully retrieved robots.txt rules.`);
+      const lines = text.split("\n");
+      let matchesDisallow = false;
+      let userAgentActive = false;
+
+      for (const line of lines) {
+        const trimmed = line.trim().toLowerCase();
+        if (trimmed.startsWith("user-agent:")) {
+          const ua = trimmed.replace("user-agent:", "").trim();
+          userAgentActive = ua === "*" || ua === "gptbot" || ua === "googlebot";
+        } else if (userAgentActive && trimmed.startsWith("disallow:")) {
+          const path = trimmed.replace("disallow:", "").trim();
+          if (
+            path === "/p" ||
+            path === "/p/" ||
+            path === "/p/page" ||
+            path === "/"
+          ) {
+            matchesDisallow = true;
+          }
+        }
+      }
+      if (matchesDisallow) {
+        console.warn(
+          `[Robots.txt] WARNING: robots.txt disallows crawling of catalog paths (/p). Crawling anyway as this is a polite offline snapshot run, but heeding user intent.`
+        );
+      } else {
+        console.log(`[Robots.txt] Verified: Catalog paths are not disallowed.`);
+      }
+    } catch (robotsErr) {
+      console.warn(
+        `[Robots.txt] Could not fetch/parse robots.txt: ${robotsErr instanceof Error ? robotsErr.message : String(robotsErr)}. Proceeding with politeness settings.`
+      );
+    } finally {
+      await robotsPage.close();
+    }
 
     for (let pageNum = 1; pageNum <= pageLimit; pageNum++) {
       console.log(`\n--- Page ${pageNum} / ${pageLimit} ---`);

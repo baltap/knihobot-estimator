@@ -48,6 +48,7 @@ export class LocalCatalogRepository implements CatalogRepository {
 
   /**
    * Find comparable listings based on ISBN exact match or title+author fuzzy fallback.
+   * Results are sorted by match score descending to place the best matches first.
    */
   async findComparables(query: BookQuery): Promise<Comparable[]> {
     // 1. ISBN exact match first (if ISBN is supplied in query)
@@ -62,7 +63,7 @@ export class LocalCatalogRepository implements CatalogRepository {
       }
     }
 
-    // 2. Fuzzy title + author fallback match
+    // 2. Fuzzy title + author fallback match with scoring
     const qTitle = query.title ? normalizeString(query.title) : "";
     const qAuthor = query.author ? normalizeString(query.author) : "";
 
@@ -71,23 +72,50 @@ export class LocalCatalogRepository implements CatalogRepository {
       return [];
     }
 
-    return this.comparables.filter((item) => {
-      let isTitleMatch = true;
-      let isAuthorMatch = true;
+    interface ScoredItem {
+      item: Comparable;
+      score: number;
+    }
 
-      if (qTitle) {
-        const itemTitle = normalizeString(item.title);
-        isTitleMatch = itemTitle.includes(qTitle) || qTitle.includes(itemTitle);
-      }
+    const scoredItems: ScoredItem[] = [];
 
-      if (qAuthor) {
-        const itemAuthor = normalizeString(item.author);
-        isAuthorMatch =
+    for (const item of this.comparables) {
+      let score = 0;
+      const itemTitle = normalizeString(item.title);
+      const itemAuthor = normalizeString(item.author);
+
+      if (qTitle && qAuthor) {
+        // Both title and author are provided
+        const authorMatches =
           itemAuthor.includes(qAuthor) || qAuthor.includes(itemAuthor);
+        if (authorMatches) {
+          if (itemTitle === qTitle) {
+            score = 150; // Perfect match: both title and author match
+          } else if (itemTitle.includes(qTitle) || qTitle.includes(itemTitle)) {
+            score = 80; // Substring title match with author agreement
+          }
+        }
+      } else if (qTitle) {
+        // Only title is provided: strictly require exact title match to prevent word-sharing mismatches
+        if (itemTitle === qTitle) {
+          score = 100;
+        }
+      } else if (qAuthor) {
+        // Only author is provided: check if author matches
+        if (itemAuthor.includes(qAuthor) || qAuthor.includes(itemAuthor)) {
+          score = 50;
+        }
       }
 
-      return isTitleMatch && isAuthorMatch;
-    });
+      if (score > 0) {
+        scoredItems.push({ item, score });
+      }
+    }
+
+    // Sort by score descending to rank the best matches first
+    scoredItems.sort((a, b) => b.score - a.score);
+
+    return scoredItems.map((si) => si.item);
   }
 
   /**
