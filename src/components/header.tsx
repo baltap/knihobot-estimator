@@ -164,12 +164,6 @@ export default function Header() {
               </svg>
             )}
           </button>
-
-          {/* Demo badge */}
-          <span className="hidden md:inline-flex items-center gap-1.5 rounded-full border border-amber px-2.5 py-1 text-[11px] font-semibold tracking-wide text-amber select-none">
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber" />
-            {t("header_demo_mode")}
-          </span>
         </div>
       </div>
     </header>
