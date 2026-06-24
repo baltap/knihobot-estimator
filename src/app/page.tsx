@@ -842,70 +842,6 @@ export default function Home() {
           ) : (
             <div className="space-y-6">
               {/* ---------------------------------------------------- */}
-              {/* Aggregate Headline Card (Shipment Value Summary)     */}
-              {/* ---------------------------------------------------- */}
-              <div className="rounded-card border-[1.5px] border-green-600 bg-green-bg p-6 sm:p-7">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
-                  <div>
-                    <h2 className="text-xs font-semibold uppercase tracking-[0.08em] text-green-700">
-                      {t("shelf_summary_title")}
-                    </h2>
-                    {/* Headline Scope (N2) */}
-                    <p className="mt-1.5 text-sm font-medium text-ink">
-                      {language === "cs" ? (
-                        <>
-                          Odesíláte{" "}
-                          <strong className="font-bold text-green-700">
-                            {sendBucket.length}
-                          </strong>{" "}
-                          z{" "}
-                          <strong className="font-semibold text-ink">
-                            {shelf.length}
-                          </strong>{" "}
-                          {shelf.length === 1 ? "knihy" : "knih"} na vaší polici
-                        </>
-                      ) : (
-                        <>
-                          Sending{" "}
-                          <strong className="font-bold text-green-700">
-                            {sendBucket.length}
-                          </strong>{" "}
-                          of{" "}
-                          <strong className="font-semibold text-ink">
-                            {shelf.length}
-                          </strong>{" "}
-                          {shelf.length === 1 ? "book" : "books"} on your shelf
-                        </>
-                      )}
-                    </p>
-                    <p className="num mt-3 font-serif text-4xl font-bold tracking-tight text-green-700">
-                      {totalPayoutMin}–{totalPayoutMax} {t("currency")}
-                    </p>
-                    <p className="mt-1 text-[11px] text-ink-soft">
-                      {t("shelf_total_range_desc")}
-                    </p>
-                  </div>
-
-                  {/* Split CTA buttons (B1) */}
-                  <div className="flex shrink-0 flex-col gap-2">
-                    <Button
-                      onClick={() => setIsCheckoutModalOpen(true)}
-                      className="inline-flex h-11 cursor-pointer items-center justify-center rounded-full bg-green-600 px-6 text-center text-sm font-bold text-on-green transition-all hover:bg-green-700 focus-visible:ring-2 focus-visible:ring-green-600/40"
-                    >
-                      {t("shelf_btn_send", { count: sendBucket.length })}
-                    </Button>
-                    {keepDonateBucket.length > 0 && (
-                      <div className="text-center text-[11px] font-medium text-ink-soft">
-                        {t("shelf_kept_locally", {
-                          count: keepDonateBucket.length,
-                        })}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* ---------------------------------------------------- */}
               {/* Split Buckets: 1. Shipment List (Send Bucket)        */}
               {/* ---------------------------------------------------- */}
               <div>
@@ -1339,6 +1275,70 @@ export default function Home() {
                   </div>
                 </div>
               )}
+
+              {/* ---------------------------------------------------- */}
+              {/* Aggregate Headline Card (Shipment Value Summary)     */}
+              {/* ---------------------------------------------------- */}
+              <div className="rounded-card border-[1.5px] border-green-600 bg-green-bg p-6 sm:p-7">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+                  <div>
+                    <h2 className="text-xs font-semibold uppercase tracking-[0.08em] text-green-700">
+                      {t("shelf_summary_title")}
+                    </h2>
+                    {/* Headline Scope (N2) */}
+                    <p className="mt-1.5 text-sm font-medium text-ink">
+                      {language === "cs" ? (
+                        <>
+                          Odesíláte{" "}
+                          <strong className="font-bold text-green-700">
+                            {sendBucket.length}
+                          </strong>{" "}
+                          z{" "}
+                          <strong className="font-semibold text-ink">
+                            {shelf.length}
+                          </strong>{" "}
+                          {shelf.length === 1 ? "knihy" : "knih"} na vaší polici
+                        </>
+                      ) : (
+                        <>
+                          Sending{" "}
+                          <strong className="font-bold text-green-700">
+                            {sendBucket.length}
+                          </strong>{" "}
+                          of{" "}
+                          <strong className="font-semibold text-ink">
+                            {shelf.length}
+                          </strong>{" "}
+                          {shelf.length === 1 ? "book" : "books"} on your shelf
+                        </>
+                      )}
+                    </p>
+                    <p className="num mt-3 font-serif text-4xl font-bold tracking-tight text-green-700">
+                      {totalPayoutMin}–{totalPayoutMax} {t("currency")}
+                    </p>
+                    <p className="mt-1 text-[11px] text-ink-soft">
+                      {t("shelf_total_range_desc")}
+                    </p>
+                  </div>
+
+                  {/* Split CTA buttons (B1) */}
+                  <div className="flex shrink-0 flex-col gap-2">
+                    <Button
+                      onClick={() => setIsCheckoutModalOpen(true)}
+                      className="inline-flex h-11 cursor-pointer items-center justify-center rounded-full bg-green-600 px-6 text-center text-sm font-bold text-on-green transition-all hover:bg-green-700 focus-visible:ring-2 focus-visible:ring-green-600/40"
+                    >
+                      {t("shelf_btn_send", { count: sendBucket.length })}
+                    </Button>
+                    {keepDonateBucket.length > 0 && (
+                      <div className="text-center text-[11px] font-medium text-ink-soft">
+                        {t("shelf_kept_locally", {
+                          count: keepDonateBucket.length,
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </section>
