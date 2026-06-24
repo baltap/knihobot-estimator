@@ -105,7 +105,7 @@ Make it feel trustworthy and founder-demo ready.
 - Photograph spines → vision model extracts titles → estimates. Label "AI beta"; a
   live flake must never break the MVP path. (Mirrors Knihobot's real selling flow.)
 
-### S3 — Seller dashboard screen · `TODO`
+### S3 — Seller dashboard screen · `DONE`
 
 - A thin second screen: status pipeline (received → priced → listed → sold → paid) +
   a payout countdown that names the exact date money lands. Directly answers the
@@ -120,5 +120,5 @@ Make it feel trustworthy and founder-demo ready.
 ## Decisions log (Peter fills this in as we go)
 
 - Backend / storage choice: **UNDECIDED** — to be chosen mid-build.
-- Hero input (barcode vs. AI photo): **OPEN** — decide before S1/S2.
+- Hero input (barcode vs. AI photo): **RESOLVED** — both scanners sit side-by-side in the manual search row; the manual ISBN/title text box remains the primary input, with the Barcode camera and AI Spine Scanner as secondary affordances.
 - Commission rates confirmed against current Knihobot terms? **YES** — confirmed (60% share minus 29 CZK fee)

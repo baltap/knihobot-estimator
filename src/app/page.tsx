@@ -1,10 +1,13 @@
 "use client";
 
-import React, { useState, useEffect, useTransition, useRef } from "react";
+import React, { useState, useTransition, useRef } from "react";
 import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
 import { getBookEstimate, EstimateResponse } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import { trackEvent } from "@/lib/analytics";
+import Header from "@/components/header";
+import { addShipment } from "@/lib/seller-repository";
 
 const BarcodeScanner = dynamic(
   () => import("@/components/barcode-scanner"),
@@ -34,15 +37,16 @@ interface ShelfItem {
 }
 
 export default function Home() {
-  // Theme state (Dark Mode) - N3
-  const [theme, setTheme] = useState<"light" | "dark">("light");
-
   // Barcode scanner states
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const audioContextRef = useRef<AudioContext | null>(null);
 
   // Spine AI scanner states
   const [isSpineScannerOpen, setIsSpineScannerOpen] = useState(false);
+
+  // Checkout modal states
+  const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
+  const router = useRouter();
 
   // Form states
   const [searchQuery, setSearchQuery] = useState("");
@@ -56,47 +60,9 @@ export default function Home() {
   const [isPending, startTransition] = useTransition();
   const [formError, setFormError] = useState<string | null>(null);
 
-  // Expanded peek panels by shelf item ID
   const [expandedPeeks, setExpandedPeeks] = useState<Record<string, boolean>>(
     {}
   );
-
-  // Theme Sync Effect
-  useEffect(() => {
-    const isDark = document.documentElement.classList.contains("dark");
-    /* eslint-disable-next-line react-hooks/set-state-in-effect */
-    setTheme(isDark ? "dark" : "light");
-
-    // Listen for system changes
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-    const handleSystemThemeChange = (e: MediaQueryListEvent) => {
-      if (!localStorage.getItem("theme")) {
-        const nextTheme = e.matches ? "dark" : "light";
-        setTheme(nextTheme);
-        if (nextTheme === "dark") {
-          document.documentElement.classList.add("dark");
-        } else {
-          document.documentElement.classList.remove("dark");
-        }
-        trackEvent("theme_toggled", { theme: nextTheme, trigger: "system" });
-      }
-    };
-    mediaQuery.addEventListener("change", handleSystemThemeChange);
-    return () =>
-      mediaQuery.removeEventListener("change", handleSystemThemeChange);
-  }, []);
-
-  const toggleTheme = () => {
-    const nextTheme = theme === "light" ? "dark" : "light";
-    setTheme(nextTheme);
-    localStorage.setItem("theme", nextTheme);
-    if (nextTheme === "dark") {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-    trackEvent("theme_toggled", { theme: nextTheme, trigger: "user" });
-  };
 
   // Core function to fetch estimation, track analytics, and add item to shelf
   const addBookToShelf = async (
@@ -232,6 +198,34 @@ export default function Home() {
         console.error("Error adding batch item from spine scan:", book.title, err);
       }
     }
+  };
+
+  const handleSimulateCheckout = () => {
+    // 1. Prepare items to submit
+    const itemsToSubmit = sendBucket.map((item) => ({
+      title: item.comparables[0]?.title || item.query.title || item.query.isbn || "Unknown Title",
+      author: item.comparables[0]?.author || item.query.author || "Unknown Author",
+      isbn: item.query.isbn,
+      condition: item.condition,
+      payoutCzk: item.estimation.payoutMedian.payout,
+    }));
+
+    // 2. Add shipment to local storage database
+    addShipment(itemsToSubmit, totalPayoutMin, totalPayoutMax);
+
+    // 3. Track event
+    trackEvent("shipment_submitted_demo", {
+      book_count: sendBucket.length,
+      payout_min: totalPayoutMin,
+      payout_max: totalPayoutMax,
+    });
+
+    // 4. Clear Estimator shelf and close modal
+    setShelf([]);
+    setIsCheckoutModalOpen(false);
+
+    // 5. Navigate to dashboard page
+    router.push("/dashboard");
   };
 
   // Recalculate estimate inline when condition changes for an item on the shelf
@@ -541,71 +535,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-50 font-sans transition-colors duration-200">
       {/* Header bar */}
-      <header className="border-b border-zinc-200/80 bg-white/70 backdrop-blur-md sticky top-0 z-40 dark:border-zinc-800/80 dark:bg-zinc-950/70">
-        <div className="mx-auto flex max-w-4xl h-16 items-center justify-between px-6">
-          <div className="flex items-center gap-2 font-bold text-brand dark:text-brand-foreground text-lg">
-            <svg
-              className="h-6 w-6 text-brand dark:text-emerald-500"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2.5}
-              aria-hidden="true"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-              />
-            </svg>
-            <span>Knihobot Seller Estimator</span>
-          </div>
-
-          <div className="flex items-center gap-4">
-            {/* Theme Toggle Button (N3) */}
-            <button
-              onClick={toggleTheme}
-              aria-label="Toggle theme"
-              className="p-2 rounded-lg border border-zinc-200 text-zinc-600 hover:bg-zinc-100 focus:outline-none focus:ring-2 focus:ring-brand/30 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-800 cursor-pointer"
-            >
-              {theme === "light" ? (
-                // Moon Icon
-                <svg
-                  className="h-4.5 w-4.5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
-                  />
-                </svg>
-              ) : (
-                // Sun Icon
-                <svg
-                  className="h-4.5 w-4.5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.364l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z"
-                  />
-                </svg>
-              )}
-            </button>
-            <div className="hidden sm:block text-xs text-zinc-600 dark:text-zinc-400 font-mono">
-              MVP Demo · snapshot
-            </div>
-          </div>
-        </div>
-      </header>
+      <Header />
 
       {/* Main container */}
       <main className="mx-auto max-w-2xl px-6 py-12 sm:py-16">
@@ -860,15 +790,13 @@ export default function Home() {
 
                   {/* Split CTA buttons (B1) */}
                   <div className="flex flex-col gap-2 shrink-0">
-                    <a
-                      href="https://knihobot.cz/prodej-knih"
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <Button
+                      onClick={() => setIsCheckoutModalOpen(true)}
                       className="inline-flex h-9 items-center justify-center rounded-lg bg-brand px-4 text-xs font-bold text-brand-foreground hover:bg-brand/95 transition-all text-center focus-visible:ring-2 focus-visible:ring-brand/50 dark:bg-emerald-700 dark:hover:bg-emerald-600 cursor-pointer"
                     >
                       Send {sendBucket.length}{" "}
                       {sendBucket.length === 1 ? "book" : "books"} to Knihobot
-                    </a>
+                    </Button>
                     {keepDonateBucket.length > 0 && (
                       <div className="text-center text-[10px] text-zinc-600 dark:text-zinc-400 font-medium">
                         {keepDonateBucket.length} kept/donated locally
@@ -1308,6 +1236,81 @@ export default function Home() {
           onClose={() => setIsSpineScannerOpen(false)}
           condition={formCondition}
         />
+      )}
+
+      {isCheckoutModalOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="checkout-dialog-title"
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-zinc-950/80 backdrop-blur-md p-4"
+        >
+          <div className="relative w-full max-w-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col p-6 space-y-4">
+            <div className="flex justify-between items-start">
+              <h3 id="checkout-dialog-title" className="text-base font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
+                <svg
+                  className="h-5 w-5 text-brand dark:text-emerald-500"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <span>Demo Integration Preview</span>
+              </h3>
+              <button
+                onClick={() => setIsCheckoutModalOpen(false)}
+                aria-label="Close dialog"
+                className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 p-1 rounded-md transition-colors cursor-pointer"
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs text-zinc-600 dark:text-zinc-400 leading-normal">
+              <p>
+                <strong>This is a simulated demo environment.</strong>
+              </p>
+              <p>
+                To actually sell your books on Knihobot, proceed to the real seller intake form. Your active shelf items will not be sent automatically.
+              </p>
+              <p>
+                Alternatively, click the secondary button below to simulate shipping these <strong>{sendBucket.length} books</strong>. You can then view their progress inside your demo tracking dashboard.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-2 pt-2">
+              <a
+                href="https://knihobot.cz/prodej-knih"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setIsCheckoutModalOpen(false)}
+                className="inline-flex h-10 items-center justify-center rounded-lg bg-brand px-4 text-xs font-bold text-white hover:bg-brand/95 transition-all text-center dark:bg-emerald-700 dark:hover:bg-emerald-600 cursor-pointer"
+              >
+                Proceed to real Knihobot intake (knihobot.cz) →
+              </a>
+              <button
+                onClick={handleSimulateCheckout}
+                className="inline-flex h-10 items-center justify-center rounded-lg border border-zinc-200 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-800/85 px-4 text-xs font-bold text-zinc-800 dark:text-zinc-200 cursor-pointer transition-colors"
+              >
+                Simulate Tracking on Demo Dashboard
+              </button>
+              <button
+                onClick={() => setIsCheckoutModalOpen(false)}
+                className="text-center text-[10px] text-zinc-500 hover:underline cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
