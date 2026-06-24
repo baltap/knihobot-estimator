@@ -352,8 +352,8 @@ export const translations: Record<Language, Dictionary> = {
     form_condition_verygood: "Velmi dobrý",
     form_condition_good: "Dobrý",
     form_condition_worn: "Opotřebená",
-    form_btn_add: "Přidat na poličku k ocenění",
-    form_btn_adding: "Přidávání na poličku...",
+    form_btn_add: "Přidat do odhadu",
+    form_btn_adding: "Přidávání do odhadu...",
     form_error_empty: "Zadejte prosím název nebo ISBN k ocenění.",
     form_error_no_match:
       "V našem přehledu nebyly nalezeny žádné srovnatelné položky.",
