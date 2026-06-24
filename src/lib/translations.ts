@@ -204,9 +204,9 @@ export const translations: Record<Language, Dictionary> = {
     // Spine scanner
     spine_dialog_title: "AI Spine Scanner",
     spine_dialog_desc: "Upload a spine photo to auto-detect multiple titles",
-    spine_step_upload_title: "Snap or Upload Spine Photo",
+    spine_step_upload_title: "Upload Spine Photo",
     spine_step_upload_desc:
-      "Place a stack of books with their spines facing the camera to extract metadata.",
+      "Upload a photo of book spines from your files, or take one directly on mobile.",
     spine_btn_retake: "Retake Photo",
     spine_btn_analyze: "Analyze Spines",
     spine_analyzing_title: "AI analysis in progress...",
@@ -512,9 +512,9 @@ export const translations: Record<Language, Dictionary> = {
     spine_dialog_title: "AI skener hřbetů",
     spine_dialog_desc:
       "Nahrajte fotografii hřbetů pro automatickou detekci více knih najednou",
-    spine_step_upload_title: "Vyfoťte nebo nahrajte hřbety knih",
+    spine_step_upload_title: "Nahrajte fotografii hřbetů",
     spine_step_upload_desc:
-      "Umístěte stoh knih hřbety směrem k fotoaparátu pro rozpoznání názvů.",
+      "Vyberte fotografii hřbetů ze svých souborů, nebo ji pořiďte přímo na telefonu.",
     spine_btn_retake: "Vyfotit znovu",
     spine_btn_analyze: "Analyzovat hřbety",
     spine_analyzing_title: "Probíhá analýza pomocí AI...",
