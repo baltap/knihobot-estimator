@@ -591,7 +591,7 @@ export default function Home() {
             <form onSubmit={handleAddBook} className="space-y-5 p-6">
               <div className="grid grid-cols-1 gap-x-4 gap-y-5 sm:grid-cols-[2fr_1.3fr_1.5fr_auto_auto] sm:items-end">
                 {/* Title or ISBN */}
-                <div className="relative">
+                <div className="relative z-10">
                   <label
                     htmlFor="search-query"
                     className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-ink-faint"
@@ -632,7 +632,7 @@ export default function Home() {
                         <button
                           type="button"
                           onClick={() =>
-                            handleQuickFill("9788024928609", "Paula Hawkins")
+                            handleQuickFill("9788020204684", "Zdeněk Jirotka")
                           }
                           className="flex cursor-pointer items-center justify-between rounded p-1.5 text-left text-xs text-ink-soft hover:bg-surface-2 transition-all"
                         >
