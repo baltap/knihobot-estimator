@@ -579,10 +579,10 @@ export default function Home() {
           <h2 className="mb-3.5 font-serif text-xl font-semibold text-ink">
             {t("form_add_title")}
           </h2>
-          <div className="overflow-hidden rounded-card border border-line-strong bg-surface shadow-paper">
+          <div className="rounded-card border border-line-strong bg-surface shadow-paper">
             {/* Decorative library-tape strip */}
             <div
-              className="h-1.5"
+              className="h-1.5 rounded-t-card"
               style={{
                 background:
                   "repeating-linear-gradient(90deg,var(--green-600) 0 22px,transparent 22px 30px)",
