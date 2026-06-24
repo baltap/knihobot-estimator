@@ -60,6 +60,7 @@ export default function Home() {
   const [shelf, setShelf] = useState<ShelfItem[]>([]);
   const [isPending, startTransition] = useTransition();
   const [formError, setFormError] = useState<string | null>(null);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
 
   const [expandedPeeks, setExpandedPeeks] = useState<Record<string, boolean>>(
     {}
@@ -155,20 +156,11 @@ export default function Home() {
     });
   };
 
-  // Demo one-click helper
-  const handleQuickFill = (isbn: string, title: string, author: string) => {
+  // Demo autofill helper
+  const handleQuickFill = (isbn: string, author: string) => {
     setSearchQuery(isbn);
     setAuthorQuery(author);
     setFormCondition("good");
-    startTransition(async () => {
-      try {
-        await addBookToShelf(isbn, author, "good", "manual");
-        setSearchQuery("");
-        setAuthorQuery("");
-      } catch (err) {
-        console.error(err);
-      }
-    });
   };
 
   // Open barcode scanner modal (initializing audio context on click gesture)
@@ -599,7 +591,7 @@ export default function Home() {
             <form onSubmit={handleAddBook} className="space-y-5 p-6">
               <div className="grid grid-cols-1 gap-x-4 gap-y-5 sm:grid-cols-[2fr_1.3fr_1.5fr_auto_auto] sm:items-end">
                 {/* Title or ISBN */}
-                <div>
+                <div className="relative">
                   <label
                     htmlFor="search-query"
                     className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-ink-faint"
@@ -611,10 +603,59 @@ export default function Home() {
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
+                    onFocus={() => setIsSearchFocused(true)}
+                    onBlur={() =>
+                      setTimeout(() => setIsSearchFocused(false), 200)
+                    }
                     placeholder={t("form_placeholder_isbn")}
                     className="w-full min-w-0 border-0 border-b-[1.5px] border-line-strong bg-transparent px-0.5 py-2 text-sm font-medium text-ink placeholder-ink-faint outline-none transition-colors focus:border-green-600"
                     aria-required="true"
                   />
+                  {isSearchFocused && !searchQuery.trim() && (
+                    <div className="absolute left-0 right-0 z-50 mt-1 rounded-md border border-line bg-surface p-2 shadow-paper">
+                      <p className="mb-1.5 px-1.5 text-[10px] font-bold uppercase tracking-wider text-ink-faint">
+                        {t("form_demo_help_title")}
+                      </p>
+                      <div className="flex flex-col gap-0.5">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleQuickFill("9788076111226", "Patrik Hartl")
+                          }
+                          className="flex cursor-pointer items-center justify-between rounded p-1.5 text-left text-xs text-ink-soft hover:bg-surface-2 transition-all"
+                        >
+                          <span>{t("form_demo_book_high")}</span>
+                          <span className="rounded-full bg-green-bg px-1.5 py-0.5 text-[9px] font-bold text-green-700">
+                            {t("form_demo_book_high_badge")}
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleQuickFill("9788024928609", "Paula Hawkins")
+                          }
+                          className="flex cursor-pointer items-center justify-between rounded p-1.5 text-left text-xs text-ink-soft hover:bg-surface-2 transition-all"
+                        >
+                          <span>{t("form_demo_book_over")}</span>
+                          <span className="rounded-full bg-amber-bg px-1.5 py-0.5 text-[9px] font-bold text-amber">
+                            {t("form_demo_book_over_badge")}
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleQuickFill("9788072273201", "Evžen Boček")
+                          }
+                          className="flex cursor-pointer items-center justify-between rounded p-1.5 text-left text-xs text-ink-soft hover:bg-surface-2 transition-all"
+                        >
+                          <span>{t("form_demo_book_low")}</span>
+                          <span className="rounded-full bg-red-bg px-1.5 py-0.5 text-[9px] font-bold text-red">
+                            {t("form_demo_book_low_badge")}
+                          </span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Author (Only visible if not searching purely by ISBN) */}
@@ -770,52 +811,6 @@ export default function Home() {
                 </p>
               )}
             </form>
-          </div>
-          {/* Quick Demo Help Panel */}
-          <div className="mt-3.5 flex flex-col gap-2 px-2 sm:flex-row sm:items-center sm:gap-3.5">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-ink-soft">
-              {t("form_demo_help_title")}
-            </span>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() =>
-                  handleQuickFill("9788076111226", "Gazely", "Patrik Hartl")
-                }
-                className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-line bg-surface px-3.5 py-1 text-xs font-medium text-ink-soft hover:bg-surface-2 transition-all"
-              >
-                <span className="h-1.5 w-1.5 rounded-full bg-green-600" />
-                {t("form_demo_book_high")}
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  handleQuickFill(
-                    "9788024928609",
-                    "Dívka ve vlaku",
-                    "Paula Hawkins"
-                  )
-                }
-                className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-line bg-surface px-3.5 py-1 text-xs font-medium text-ink-soft hover:bg-surface-2 transition-all"
-              >
-                <span className="h-1.5 w-1.5 rounded-full bg-amber" />
-                {t("form_demo_book_over")}
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  handleQuickFill(
-                    "9788072273201",
-                    "Poslední aristokratka",
-                    "Evžen Boček"
-                  )
-                }
-                className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-line bg-surface px-3.5 py-1 text-xs font-medium text-ink-soft hover:bg-surface-2 transition-all"
-              >
-                <span className="h-1.5 w-1.5 rounded-full bg-red" />
-                {t("form_demo_book_low")}
-              </button>
-            </div>
           </div>
         </section>
 
