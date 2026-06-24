@@ -10,15 +10,13 @@ import Header from "@/components/header";
 import { addShipment } from "@/lib/seller-repository";
 import { useLanguage } from "@/components/language-provider";
 
-const BarcodeScanner = dynamic(
-  () => import("@/components/barcode-scanner"),
-  { ssr: false }
-);
+const BarcodeScanner = dynamic(() => import("@/components/barcode-scanner"), {
+  ssr: false,
+});
 
-const SpineScanner = dynamic(
-  () => import("@/components/spine-scanner"),
-  { ssr: false }
-);
+const SpineScanner = dynamic(() => import("@/components/spine-scanner"), {
+  ssr: false,
+});
 
 interface ShelfItem {
   id: string; // unique ID for duplicate-support
@@ -108,8 +106,7 @@ export default function Home() {
     });
 
     // Determine default agency options: sub-threshold books default to "keep", normal/oversupplied default to "send"
-    const isBelowThreshold =
-      response.estimation.payoutMedian.isBelowThreshold;
+    const isBelowThreshold = response.estimation.payoutMedian.isBelowThreshold;
     const defaultAgency = isBelowThreshold ? "keep" : "send";
 
     const newShelfItem: ShelfItem = {
@@ -163,12 +160,16 @@ export default function Home() {
     if (!audioContextRef.current) {
       const AudioContextClass =
         window.AudioContext ||
-        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        (window as unknown as { webkitAudioContext: typeof AudioContext })
+          .webkitAudioContext;
       if (AudioContextClass) {
         audioContextRef.current = new AudioContextClass();
       }
     }
-    if (audioContextRef.current && audioContextRef.current.state === "suspended") {
+    if (
+      audioContextRef.current &&
+      audioContextRef.current.state === "suspended"
+    ) {
       audioContextRef.current.resume();
     }
     setIsScannerOpen(true);
@@ -178,7 +179,12 @@ export default function Home() {
   // Barcode scanner scan callback
   const handleBarcodeScan = async (isbn: string) => {
     try {
-      const result = await addBookToShelf(isbn, undefined, formCondition, "scan");
+      const result = await addBookToShelf(
+        isbn,
+        undefined,
+        formCondition,
+        "scan"
+      );
       return result;
     } catch (err) {
       console.error("Barcode scan lookup error:", err);
@@ -198,7 +204,11 @@ export default function Home() {
       try {
         await addBookToShelf(book.title, book.author, formCondition, "spine");
       } catch (err) {
-        console.error("Error adding batch item from spine scan:", book.title, err);
+        console.error(
+          "Error adding batch item from spine scan:",
+          book.title,
+          err
+        );
       }
     }
   };
@@ -206,8 +216,13 @@ export default function Home() {
   const handleSimulateCheckout = () => {
     // 1. Prepare items to submit
     const itemsToSubmit = sendBucket.map((item) => ({
-      title: item.comparables[0]?.title || item.query.title || item.query.isbn || "Unknown Title",
-      author: item.comparables[0]?.author || item.query.author || "Unknown Author",
+      title:
+        item.comparables[0]?.title ||
+        item.query.title ||
+        item.query.isbn ||
+        "Unknown Title",
+      author:
+        item.comparables[0]?.author || item.query.author || "Unknown Author",
       isbn: item.query.isbn,
       condition: item.condition,
       payoutCzk: item.estimation.payoutMedian.payout,
@@ -425,55 +440,55 @@ export default function Home() {
       return null;
     }
     return (
-      <div className="mt-4 p-3 rounded-lg border border-amber-200/50 bg-amber-50/10 dark:border-amber-900/30 dark:bg-amber-950/10 text-xs">
+      <div className="mt-4 rounded-input border border-amber/40 bg-amber-bg p-3 text-xs">
         <fieldset className="space-y-2">
-          <legend className="block text-[10px] font-bold uppercase tracking-wider text-amber-800 dark:text-amber-400 mb-1">
+          <legend className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-amber">
             {t("agency_threshold_legend")}
           </legend>
           <div className="space-y-1">
-            <label className="flex items-start gap-2.5 cursor-pointer py-1 rounded hover:bg-zinc-100/50 dark:hover:bg-zinc-800/30">
+            <label className="flex cursor-pointer items-start gap-2.5 rounded py-1 hover:bg-surface-2">
               <input
                 type="radio"
                 name={`agency-${item.id}`}
                 value="keep"
                 checked={item.agencySelection === "keep"}
                 onChange={() => handleItemAgencyChange(item.id, "keep")}
-                className="mt-0.5 h-3.5 w-3.5 border-zinc-300 text-brand focus:ring-brand dark:border-zinc-800 dark:focus:ring-emerald-500 cursor-pointer"
+                className="mt-0.5 h-3.5 w-3.5 cursor-pointer accent-green-600"
               />
               <span>
-                <strong className="font-bold text-zinc-800 dark:text-zinc-200">
+                <strong className="font-bold text-ink">
                   {t("agency_choice_keep_label")}
                 </strong>
                 {t("agency_choice_keep_desc")}
               </span>
             </label>
-            <label className="flex items-start gap-2.5 cursor-pointer py-1 rounded hover:bg-zinc-100/50 dark:hover:bg-zinc-800/30">
+            <label className="flex cursor-pointer items-start gap-2.5 rounded py-1 hover:bg-surface-2">
               <input
                 type="radio"
                 name={`agency-${item.id}`}
                 value="donate"
                 checked={item.agencySelection === "donate"}
                 onChange={() => handleItemAgencyChange(item.id, "donate")}
-                className="mt-0.5 h-3.5 w-3.5 border-zinc-300 text-brand focus:ring-brand dark:border-zinc-800 dark:focus:ring-emerald-500 cursor-pointer"
+                className="mt-0.5 h-3.5 w-3.5 cursor-pointer accent-green-600"
               />
               <span>
-                <strong className="font-bold text-zinc-800 dark:text-zinc-200">
+                <strong className="font-bold text-ink">
                   {t("agency_choice_donate_label")}
                 </strong>
                 {t("agency_choice_donate_desc")}
               </span>
             </label>
-            <label className="flex items-start gap-2.5 cursor-pointer py-1 rounded hover:bg-zinc-100/50 dark:hover:bg-zinc-800/30">
+            <label className="flex cursor-pointer items-start gap-2.5 rounded py-1 hover:bg-surface-2">
               <input
                 type="radio"
                 name={`agency-${item.id}`}
                 value="send"
                 checked={item.agencySelection === "send"}
                 onChange={() => handleItemAgencyChange(item.id, "send")}
-                className="mt-0.5 h-3.5 w-3.5 border-zinc-300 text-brand focus:ring-brand dark:border-zinc-800 dark:focus:ring-emerald-500 cursor-pointer"
+                className="mt-0.5 h-3.5 w-3.5 cursor-pointer accent-green-600"
               />
               <span>
-                <strong className="font-bold text-zinc-800 dark:text-zinc-200">
+                <strong className="font-bold text-ink">
                   {t("agency_choice_send_label")}
                 </strong>
                 {t("agency_choice_send_desc")}
@@ -499,10 +514,10 @@ export default function Home() {
 
     return (
       <div
-        className={`mt-3 p-2 rounded-lg text-xs flex items-center justify-between ${
+        className={`mt-3 flex items-center justify-between rounded-input p-2 text-xs ${
           isOversupplied
-            ? "bg-amber-50/20 border border-amber-100/30 text-amber-800 dark:text-amber-400"
-            : "bg-zinc-100/40 dark:bg-zinc-800/40 text-zinc-700 dark:text-zinc-300"
+            ? "border border-amber/30 bg-amber-bg text-amber"
+            : "bg-surface-2 text-ink-soft"
         }`}
       >
         <span>
@@ -524,7 +539,7 @@ export default function Home() {
                 );
               }
             }}
-            className="h-3.5 w-3.5 border-zinc-300 text-brand focus:ring-brand rounded cursor-pointer"
+            className="h-3.5 w-3.5 cursor-pointer rounded accent-green-600"
           />
           <span className="font-bold uppercase tracking-wider text-[10px]">
             {t("agency_keep_checkbox_label")}
@@ -535,167 +550,179 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-50 font-sans transition-colors duration-200">
+    <div className="min-h-screen bg-bg text-ink font-sans transition-colors duration-200">
       {/* Header bar */}
       <Header />
 
       {/* Main container */}
-      <main className="mx-auto max-w-2xl px-6 py-12 sm:py-16">
+      <main className="mx-auto max-w-4xl px-6 py-12 sm:py-16">
         {/* Value Prop Hero Section */}
-        <section className="text-center mb-8">
-          <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl text-zinc-950 dark:text-white">
+        <section className="mb-10">
+          <h1 className="font-serif text-4xl font-semibold leading-[1.05] tracking-tight text-balance text-ink sm:text-5xl">
             {t("main_title")}
           </h1>
-          <p className="mt-3 text-sm sm:text-base text-zinc-600 dark:text-zinc-400 max-w-xl mx-auto">
+          <p className="mt-4 max-w-[48ch] text-base leading-relaxed text-ink-soft sm:text-lg">
             {t("main_description")}
           </p>
         </section>
 
-        {/* Add Book Input Form */}
-        <section className="rounded-2xl border border-zinc-200/80 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/60 dark:backdrop-blur-md mb-8">
-          <form onSubmit={handleAddBook} className="space-y-4">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-300">
-              {t("form_add_title")}
-            </h2>
-
-            <div className="grid grid-cols-1 sm:grid-cols-5 gap-4">
-              <div className="sm:col-span-3">
-                <label
-                  htmlFor="search-query"
-                  className="block text-[10px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1"
-                >
-                  {t("form_label_isbn")}
-                </label>
-                <div className="flex gap-2">
+        {/* Add Book Input Form — "library slip" */}
+        <section className="mb-10">
+          <h2 className="mb-3.5 font-serif text-xl font-semibold text-ink">
+            {t("form_add_title")}
+          </h2>
+          <div className="overflow-hidden rounded-card border border-line-strong bg-surface shadow-paper">
+            {/* Decorative library-tape strip */}
+            <div
+              className="h-1.5"
+              style={{
+                background:
+                  "repeating-linear-gradient(90deg,var(--green-600) 0 22px,transparent 22px 30px)",
+              }}
+            />
+            <form onSubmit={handleAddBook} className="space-y-5 p-6">
+              <div className="grid grid-cols-1 gap-x-4 gap-y-5 sm:grid-cols-[2fr_1.3fr_1.5fr_auto_auto] sm:items-end">
+                {/* Title or ISBN */}
+                <div>
+                  <label
+                    htmlFor="search-query"
+                    className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-ink-faint"
+                  >
+                    {t("form_label_isbn")}
+                  </label>
                   <input
                     id="search-query"
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder={t("form_placeholder_isbn")}
-                    className="flex-1 min-w-0 rounded-lg border border-zinc-200 bg-zinc-50/50 px-3 py-2 text-sm placeholder-zinc-400 outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white dark:focus:border-emerald-500 dark:focus:ring-emerald-500/20 transition-all font-medium"
+                    className="w-full min-w-0 border-0 border-b-[1.5px] border-line-strong bg-transparent px-0.5 py-2 text-sm font-medium text-ink placeholder-ink-faint outline-none transition-colors focus:border-green-600"
                     aria-required="true"
                   />
-                  <Button
-                    type="button"
-                    onClick={handleOpenScanner}
-                    variant="outline"
-                    className="px-3 border-zinc-200 text-zinc-700 hover:bg-zinc-100 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-800 shrink-0 h-[38px] cursor-pointer"
-                    title={t("form_btn_scan_barcode")}
-                  >
-                    <svg
-                      className="h-5 w-5 text-brand dark:text-emerald-500"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z"
-                      />
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z"
-                      />
-                    </svg>
-                  </Button>
-
-                  <Button
-                    type="button"
-                    onClick={() => {
-                      setIsSpineScannerOpen(true);
-                      trackEvent("spine_scanner_opened", { condition: formCondition });
-                    }}
-                    variant="outline"
-                    className="px-3 border-zinc-200 text-zinc-700 hover:bg-zinc-100 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-800 shrink-0 h-[38px] cursor-pointer flex items-center gap-1.5"
-                    title={t("form_btn_scan_spine")}
-                  >
-                    <svg
-                      className="h-5 w-5 text-brand dark:text-emerald-500"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M9.813 15.904L9 21l-.813-5.096L3 15l5.096-.813L9 9l.813 5.096L15 15l-5.187.904zM18 10.5l-.375 2.625L15 13.5l2.625.375L18 16.5l.375-2.625L21 13.5l-2.625-.375L18 10.5z"
-                      />
-                    </svg>
-                    <span className="text-[9px] font-extrabold uppercase bg-brand/10 dark:bg-emerald-500/10 text-brand dark:text-emerald-400 px-1.5 py-0.5 rounded tracking-wider whitespace-nowrap border border-brand/20 dark:border-emerald-500/20">
-                      AI Beta
-                    </span>
-                  </Button>
                 </div>
-              </div>
 
-              {/* Author (Only visible if not searching purely by ISBN) */}
-              {!/^[0-9\s-]+$/.test(searchQuery.trim()) ? (
-                <div className="sm:col-span-2">
+                {/* Author (Only visible if not searching purely by ISBN) */}
+                {!/^[0-9\s-]+$/.test(searchQuery.trim()) ? (
+                  <div>
+                    <label
+                      htmlFor="author-query"
+                      className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-ink-faint"
+                    >
+                      {t("form_label_author")}
+                    </label>
+                    <input
+                      id="author-query"
+                      type="text"
+                      value={authorQuery}
+                      onChange={(e) => setAuthorQuery(e.target.value)}
+                      placeholder={t("form_placeholder_author")}
+                      className="w-full border-0 border-b-[1.5px] border-line-strong bg-transparent px-0.5 py-2 text-sm font-medium text-ink placeholder-ink-faint outline-none transition-colors focus:border-green-600"
+                    />
+                  </div>
+                ) : (
+                  <div className="flex items-end pb-2 text-xs font-medium text-ink-soft">
+                    {t("form_isbn_detected")}
+                  </div>
+                )}
+
+                {/* Condition */}
+                <div>
                   <label
-                    htmlFor="author-query"
-                    className="block text-[10px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1"
+                    htmlFor="form-condition"
+                    className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-ink-faint"
                   >
-                    {t("form_label_author")}
+                    {t("form_label_condition")}
                   </label>
-                  <input
-                    id="author-query"
-                    type="text"
-                    value={authorQuery}
-                    onChange={(e) => setAuthorQuery(e.target.value)}
-                    placeholder={t("form_placeholder_author")}
-                    className="w-full rounded-lg border border-zinc-200 bg-zinc-50/50 px-3 py-2 text-sm placeholder-zinc-400 outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white dark:focus:border-emerald-500 dark:focus:ring-emerald-500/20 transition-all font-medium"
-                  />
+                  <select
+                    id="form-condition"
+                    value={formCondition}
+                    onChange={(e) =>
+                      setFormCondition(
+                        e.target.value as "new" | "verygood" | "good" | "worn"
+                      )
+                    }
+                    className="h-[38px] w-full cursor-pointer border-0 border-b-[1.5px] border-line-strong bg-transparent px-0.5 py-1 text-sm font-medium text-ink outline-none transition-colors focus:border-green-600"
+                  >
+                    <option value="new">
+                      {t("form_condition_new_option")}
+                    </option>
+                    <option value="verygood">
+                      {t("form_condition_verygood_option")}
+                    </option>
+                    <option value="good">
+                      {t("form_condition_good_option")}
+                    </option>
+                    <option value="worn">
+                      {t("form_condition_worn_option")}
+                    </option>
+                  </select>
                 </div>
-              ) : (
-                <div className="sm:col-span-2 flex items-end text-xs text-zinc-600 dark:text-zinc-400 pb-3 font-medium">
-                  {t("form_isbn_detected")}
-                </div>
-              )}
-            </div>
 
-            {/* Condition and Submit Action Row */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label
-                  htmlFor="form-condition"
-                  className="block text-[10px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1"
+                {/* Scan barcode */}
+                <Button
+                  type="button"
+                  onClick={handleOpenScanner}
+                  variant="outline"
+                  title={t("form_btn_scan_barcode")}
+                  className="flex h-auto w-full cursor-pointer flex-col items-center gap-1.5 rounded-input border-line bg-surface-2 px-3.5 py-2.5 text-[11px] font-semibold text-ink-soft hover:bg-surface-2 hover:text-ink dark:bg-surface-2 dark:hover:bg-surface-2 sm:w-auto"
                 >
-                  {t("form_label_condition")}
-                </label>
-                <select
-                  id="form-condition"
-                  value={formCondition}
-                  onChange={(e) =>
-                    setFormCondition(
-                      e.target.value as "new" | "verygood" | "good" | "worn"
-                    )
-                  }
-                  className="w-full h-[38px] rounded-lg border border-zinc-200 bg-zinc-50/50 px-2 py-1 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white dark:focus:border-emerald-500 dark:focus:ring-emerald-500/20 transition-all font-medium text-zinc-800 dark:text-zinc-200"
+                  <svg
+                    className="size-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={1.8}
+                    strokeLinecap="round"
+                  >
+                    <path d="M3 5v14M7 5v14M11 5v14M14 5v14M18 5v14M21 5v14" />
+                  </svg>
+                  {t("form_btn_scan_barcode_short")}
+                </Button>
+
+                {/* Scan spines (AI) */}
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setIsSpineScannerOpen(true);
+                    trackEvent("spine_scanner_opened", {
+                      condition: formCondition,
+                    });
+                  }}
+                  variant="outline"
+                  title={t("form_btn_scan_spine")}
+                  className="relative flex h-auto w-full cursor-pointer flex-col items-center gap-1.5 rounded-input border-line bg-surface-2 px-3.5 py-2.5 text-[11px] font-semibold text-ink-soft hover:bg-surface-2 hover:text-ink dark:bg-surface-2 dark:hover:bg-surface-2 sm:w-auto"
                 >
-                  <option value="new">{t("form_condition_new_option")}</option>
-                  <option value="verygood">{t("form_condition_verygood_option")}</option>
-                  <option value="good">{t("form_condition_good_option")}</option>
-                  <option value="worn">{t("form_condition_worn_option")}</option>
-                </select>
+                  <span className="absolute -right-1.5 -top-2 rounded-full bg-green-600 px-1.5 py-px text-[9px] font-bold uppercase tracking-wide text-on-green">
+                    {t("form_btn_beta")}
+                  </span>
+                  <svg
+                    className="size-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={1.8}
+                    strokeLinejoin="round"
+                  >
+                    <rect x="3" y="4" width="14" height="16" rx="1.5" />
+                    <path d="M7 4v16M21 7v13a1 1 0 0 1-1 1h-3" />
+                  </svg>
+                  {t("form_btn_scan_spine_short")}
+                </Button>
               </div>
 
-              <div className="flex items-end">
+              {/* Submit Action Row */}
+              <div className="flex justify-end">
                 <Button
                   type="submit"
                   disabled={isPending}
                   variant="default"
                   size="default"
-                  className="w-full h-[38px] bg-brand text-brand-foreground hover:bg-brand/95 font-semibold text-sm transition-all focus-visible:ring-2 focus-visible:ring-brand/50 disabled:opacity-50 dark:bg-emerald-700 dark:hover:bg-emerald-600 cursor-pointer"
+                  className="h-[42px] w-full cursor-pointer rounded-full bg-green-600 px-7 text-on-green text-sm font-bold transition-all hover:bg-green-700 focus-visible:ring-2 focus-visible:ring-green-600/40 disabled:opacity-50 sm:w-auto"
                 >
                   {isPending ? (
                     <span className="flex items-center justify-center gap-1.5">
                       <svg
-                        className="animate-spin h-3.5 w-3.5 text-white"
+                        className="animate-spin h-3.5 w-3.5 text-on-green"
                         fill="none"
                         viewBox="0 0 24 24"
                       >
@@ -720,26 +747,23 @@ export default function Home() {
                   )}
                 </Button>
               </div>
-            </div>
 
-            {formError && (
-              <p
-                className="text-red-500 text-xs font-semibold mt-2"
-                role="alert"
-              >
-                {formError}
-              </p>
-            )}
-          </form>
+              {formError && (
+                <p className="mt-2 text-xs font-semibold text-red" role="alert">
+                  {formError}
+                </p>
+              )}
+            </form>
+          </div>
         </section>
 
         {/* Shelf display */}
         <section aria-live="polite">
           {shelf.length === 0 ? (
             /* Empty Shelf State [N3] */
-            <div className="rounded-2xl border-2 border-dashed border-zinc-200 dark:border-zinc-800 p-12 text-center text-zinc-600 dark:text-zinc-400">
+            <div className="rounded-card border border-dashed border-line-strong p-12 text-center text-ink-soft">
               <svg
-                className="h-10 w-10 mx-auto text-zinc-500 dark:text-zinc-600 mb-3"
+                className="mx-auto mb-3 h-10 w-10 text-ink-faint"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -751,10 +775,10 @@ export default function Home() {
                   d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
                 />
               </svg>
-              <h3 className="font-bold text-sm text-zinc-700 dark:text-zinc-300">
+              <h3 className="font-serif text-base font-semibold text-ink">
                 {t("shelf_empty")}
               </h3>
-              <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-1 max-w-xs mx-auto">
+              <p className="mx-auto mt-1 max-w-xs text-xs text-ink-soft">
                 {t("shelf_empty_desc")}
               </p>
             </div>
@@ -763,61 +787,61 @@ export default function Home() {
               {/* ---------------------------------------------------- */}
               {/* Aggregate Headline Card (Shipment Value Summary)     */}
               {/* ---------------------------------------------------- */}
-              <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/60 border-l-4 border-l-brand dark:border-l-emerald-600">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="rounded-card border-[1.5px] border-green-600 bg-green-bg p-6 sm:p-7">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
                   <div>
-                    <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
+                    <h2 className="text-xs font-semibold uppercase tracking-[0.08em] text-green-700">
                       {t("shelf_summary_title")}
                     </h2>
                     {/* Headline Scope (N2) */}
-                    <p className="text-sm font-semibold mt-1 text-zinc-700 dark:text-zinc-300">
+                    <p className="mt-1.5 text-sm font-medium text-ink">
                       {language === "cs" ? (
                         <>
                           Odesíláte{" "}
-                          <strong className="text-brand dark:text-emerald-400 font-bold">
+                          <strong className="font-bold text-green-700">
                             {sendBucket.length}
                           </strong>{" "}
                           z{" "}
-                          <strong className="font-semibold text-zinc-950 dark:text-white">
+                          <strong className="font-semibold text-ink">
                             {shelf.length}
                           </strong>{" "}
-                          {shelf.length === 1 ? "knihy" : "knih"}{" "}
-                          na vaší polici
+                          {shelf.length === 1 ? "knihy" : "knih"} na vaší polici
                         </>
                       ) : (
                         <>
                           Sending{" "}
-                          <strong className="text-brand dark:text-emerald-400 font-bold">
+                          <strong className="font-bold text-green-700">
                             {sendBucket.length}
                           </strong>{" "}
                           of{" "}
-                          <strong className="font-semibold text-zinc-950 dark:text-white">
+                          <strong className="font-semibold text-ink">
                             {shelf.length}
                           </strong>{" "}
-                          {shelf.length === 1 ? "book" : "books"}{" "}
-                          on your shelf
+                          {shelf.length === 1 ? "book" : "books"} on your shelf
                         </>
                       )}
                     </p>
-                    <p className="mt-3 text-3xl font-extrabold tracking-tight text-zinc-900 dark:text-white">
+                    <p className="num mt-3 font-serif text-4xl font-bold tracking-tight text-green-700">
                       {totalPayoutMin}–{totalPayoutMax} {t("currency")}
                     </p>
-                    <p className="text-[10px] text-zinc-600 dark:text-zinc-400 mt-1">
+                    <p className="mt-1 text-[11px] text-ink-soft">
                       {t("shelf_total_range_desc")}
                     </p>
                   </div>
 
                   {/* Split CTA buttons (B1) */}
-                  <div className="flex flex-col gap-2 shrink-0">
+                  <div className="flex shrink-0 flex-col gap-2">
                     <Button
                       onClick={() => setIsCheckoutModalOpen(true)}
-                      className="inline-flex h-9 items-center justify-center rounded-lg bg-brand px-4 text-xs font-bold text-brand-foreground hover:bg-brand/95 transition-all text-center focus-visible:ring-2 focus-visible:ring-brand/50 dark:bg-emerald-700 dark:hover:bg-emerald-600 cursor-pointer"
+                      className="inline-flex h-11 cursor-pointer items-center justify-center rounded-full bg-green-600 px-6 text-center text-sm font-bold text-on-green transition-all hover:bg-green-700 focus-visible:ring-2 focus-visible:ring-green-600/40"
                     >
                       {t("shelf_btn_send", { count: sendBucket.length })}
                     </Button>
                     {keepDonateBucket.length > 0 && (
-                      <div className="text-center text-[10px] text-zinc-600 dark:text-zinc-400 font-medium">
-                        {t("shelf_kept_locally", { count: keepDonateBucket.length })}
+                      <div className="text-center text-[11px] font-medium text-ink-soft">
+                        {t("shelf_kept_locally", {
+                          count: keepDonateBucket.length,
+                        })}
                       </div>
                     )}
                   </div>
@@ -828,17 +852,19 @@ export default function Home() {
               {/* Split Buckets: 1. Shipment List (Send Bucket)        */}
               {/* ---------------------------------------------------- */}
               <div>
-                <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-3 px-1 flex items-center justify-between">
-                  <span>
-                    {t("shelf_shipment_list_title", { count: sendBucket.length })}
+                <h3 className="mb-3 flex items-center justify-between px-1">
+                  <span className="font-serif text-base font-semibold text-green-700">
+                    {t("shelf_shipment_list_title", {
+                      count: sendBucket.length,
+                    })}
                   </span>
-                  <span className="text-[10px] lowercase font-normal">
+                  <span className="text-[11px] font-normal lowercase text-ink-faint">
                     {t("shelf_shipment_list_desc")}
                   </span>
                 </h3>
 
                 {sendBucket.length === 0 ? (
-                  <div className="rounded-xl border border-zinc-200 border-dashed p-6 text-center text-xs text-zinc-600 dark:border-zinc-800 dark:border-zinc-800">
+                  <div className="rounded-card border border-dashed border-line-strong p-6 text-center text-xs text-ink-soft">
                     {t("shelf_shipment_empty")}
                   </div>
                 ) : (
@@ -846,12 +872,12 @@ export default function Home() {
                     {sendBucket.map((item) => (
                       <div
                         key={item.id}
-                        className="relative rounded-xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/40"
+                        className="relative overflow-hidden rounded-card border border-line bg-surface p-5 shadow-paper"
                       >
                         {item.isUpdating && (
-                          <div className="absolute inset-0 bg-white/60 dark:bg-zinc-900/60 backdrop-blur-xs flex items-center justify-center z-10 rounded-xl">
+                          <div className="absolute inset-0 z-10 flex items-center justify-center rounded-card bg-surface/70 backdrop-blur-xs">
                             <svg
-                              className="animate-spin h-6 w-6 text-brand dark:text-emerald-500"
+                              className="animate-spin h-6 w-6 text-green-600"
                               fill="none"
                               viewBox="0 0 24 24"
                             >
@@ -874,10 +900,10 @@ export default function Home() {
 
                         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                           <div>
-                            <h4 className="font-bold text-sm text-zinc-950 dark:text-white leading-tight">
+                            <h4 className="font-serif text-lg font-semibold leading-snug text-ink">
                               {item.comparables[0]?.title || item.query.title}
                             </h4>
-                            <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5">
+                            <p className="mt-0.5 text-sm text-ink-soft">
                               {t("card_by_author")}
                               {item.comparables[0]?.author ||
                                 item.query.author ||
@@ -888,22 +914,28 @@ export default function Home() {
                           <div className="flex items-center gap-2 shrink-0">
                             {/* Stock warning badge remains visible on shelf item (N1) */}
                             {item.estimation.demandStatus === "high" && (
-                              <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
-                                {t("demand_badge_low_stock", { count: item.estimation.activeCopies })}
+                              <span className="inline-flex items-center rounded-full bg-green-bg px-2 py-0.5 text-[10px] font-semibold text-green-700">
+                                {t("demand_badge_low_stock", {
+                                  count: item.estimation.activeCopies,
+                                })}
                               </span>
                             )}
                             {item.estimation.demandStatus === "moderate" && (
-                              <span className="inline-flex items-center rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-semibold text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-                                {t("demand_badge_supply", { count: item.estimation.activeCopies })}
+                              <span className="inline-flex items-center rounded-full bg-surface-2 px-2 py-0.5 text-[10px] font-semibold text-ink-soft">
+                                {t("demand_badge_supply", {
+                                  count: item.estimation.activeCopies,
+                                })}
                               </span>
                             )}
                             {item.estimation.demandStatus ===
                               "oversupplied" && (
                               <span
-                                className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800 dark:bg-amber-950/50 dark:text-amber-400"
+                                className="inline-flex items-center rounded-full bg-amber-bg px-2 py-0.5 text-[10px] font-semibold text-amber"
                                 title={t("demand_badge_oversupplied_title")}
                               >
-                                {t("demand_badge_oversupplied", { count: item.estimation.activeCopies })}
+                                {t("demand_badge_oversupplied", {
+                                  count: item.estimation.activeCopies,
+                                })}
                               </span>
                             )}
 
@@ -911,7 +943,7 @@ export default function Home() {
                             <button
                               onClick={() => handleRemoveBook(item.id)}
                               aria-label="Remove book"
-                              className="text-zinc-500 hover:text-red-500 dark:text-zinc-400 p-1 rounded-md transition-colors cursor-pointer"
+                              className="cursor-pointer rounded-md p-1 text-ink-faint transition-colors hover:text-red"
                             >
                               <svg
                                 className="h-4 w-4"
@@ -931,12 +963,12 @@ export default function Home() {
                         </div>
 
                         {/* Interactive fields row */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 pt-3 border-t border-zinc-100 dark:border-zinc-800/50 text-xs">
+                        <div className="mt-4 grid grid-cols-1 gap-4 border-t border-line pt-3 text-xs sm:grid-cols-2">
                           {/* Inline condition selector (re-triggers action) */}
                           <div className="flex items-center gap-2">
                             <label
                               htmlFor={`condition-${item.id}`}
-                              className="text-zinc-600 dark:text-zinc-400 font-semibold"
+                              className="font-semibold text-ink-soft"
                             >
                               {t("form_label_condition")}:
                             </label>
@@ -953,36 +985,47 @@ export default function Home() {
                                     | "worn"
                                 )
                               }
-                              className="rounded border border-zinc-200 bg-zinc-50/50 px-1.5 py-0.5 text-xs outline-none dark:border-zinc-800 dark:bg-zinc-900 font-medium text-zinc-800 dark:text-zinc-200"
+                              className="rounded-input border border-line bg-surface-2 px-1.5 py-0.5 text-xs font-medium text-ink outline-none"
                             >
-                              <option value="new">{t("card_condition_new_option")}</option>
-                              <option value="verygood">{t("card_condition_verygood_option")}</option>
-                              <option value="good">{t("card_condition_good_option")}</option>
-                              <option value="worn">{t("card_condition_worn_option")}</option>
+                              <option value="new">
+                                {t("card_condition_new_option")}
+                              </option>
+                              <option value="verygood">
+                                {t("card_condition_verygood_option")}
+                              </option>
+                              <option value="good">
+                                {t("card_condition_good_option")}
+                              </option>
+                              <option value="worn">
+                                {t("card_condition_worn_option")}
+                              </option>
                             </select>
                           </div>
 
-                          <div className="flex flex-col text-right justify-end sm:items-end">
-                            <div className="flex justify-between sm:justify-end gap-1.5">
-                              <span className="text-zinc-600 dark:text-zinc-400">
+                          <div className="flex flex-col justify-end text-right sm:items-end">
+                            <div className="flex justify-between gap-1.5 sm:justify-end">
+                              <span className="text-ink-soft">
                                 {t("card_retail_label")}{" "}
                               </span>
-                              <strong className="font-semibold text-zinc-950 dark:text-white">
+                              <strong className="num font-semibold text-ink">
                                 {item.estimation.priceMin}–
                                 {item.estimation.priceMax} {t("currency")}
                               </strong>
                             </div>
                             {/* Pluralize correctly (N4) */}
-                            <span className="block text-[10px] text-zinc-600 dark:text-zinc-400">
-                              {t("card_based_on_comparables", { count: item.estimation.comparableCount })}
+                            <span className="block text-[10px] text-ink-faint">
+                              {t("card_based_on_comparables", {
+                                count: item.estimation.comparableCount,
+                              })}
                             </span>
-                            <div className="flex justify-between sm:justify-end gap-1.5 mt-1 sm:mt-0">
-                              <span className="text-zinc-600 dark:text-zinc-400">
+                            <div className="mt-1 flex justify-between gap-1.5 sm:mt-0 sm:justify-end">
+                              <span className="text-ink-soft">
                                 {t("card_payout_label")}{" "}
                               </span>
-                              <strong className="font-bold text-brand dark:text-emerald-400">
+                              <strong className="num font-bold text-green-700">
                                 {item.estimation.payoutMin.payout}–
-                                {item.estimation.payoutMax.payout} {t("currency")}
+                                {item.estimation.payoutMax.payout}{" "}
+                                {t("currency")}
                               </strong>
                             </div>
                           </div>
@@ -990,7 +1033,7 @@ export default function Home() {
 
                         {item.updateError && (
                           <div
-                            className="mt-2 text-xs font-semibold text-red-500 bg-red-50/50 border border-red-200/50 p-2 rounded-lg dark:bg-red-950/10 dark:border-red-900/30"
+                            className="mt-2 rounded-input border border-red/30 bg-red-bg p-2 text-xs font-semibold text-red"
                             role="alert"
                           >
                             {item.updateError}
@@ -1013,30 +1056,36 @@ export default function Home() {
               {/* Split Buckets: 2. Kept or Donated (Local Handling)   */}
               {/* ---------------------------------------------------- */}
               {keepDonateBucket.length > 0 && (
-                <div className="pt-4 border-t border-zinc-200 dark:border-zinc-800">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-3 px-1 flex items-center justify-between">
-                    <span>
-                      {t("shelf_keep_donate_title_detailed", { count: keepDonateBucket.length })}
+                <div className="border-t border-line pt-4">
+                  <h3 className="mb-3 flex items-center justify-between px-1">
+                    <span className="font-serif text-base font-semibold text-ink-soft">
+                      {t("shelf_keep_donate_title_detailed", {
+                        count: keepDonateBucket.length,
+                      })}
                     </span>
-                    <span className="text-[10px] lowercase font-normal">
+                    <span className="text-[11px] font-normal lowercase text-ink-faint">
                       {t("shelf_keep_donate_desc_detailed")}
                     </span>
                   </h3>
 
-                  <div className="p-4 rounded-xl bg-zinc-100/40 border border-zinc-200/50 dark:bg-zinc-900/10 dark:border-zinc-800/80 mb-4 text-xs text-zinc-600 dark:text-zinc-400 leading-normal">
-                    <span dangerouslySetInnerHTML={{ __html: t("shelf_keep_donate_why_excluded_html") }} />
+                  <div className="mb-4 rounded-card border border-line bg-surface-2 p-4 text-xs leading-normal text-ink-soft">
+                    <span
+                      dangerouslySetInnerHTML={{
+                        __html: t("shelf_keep_donate_why_excluded_html"),
+                      }}
+                    />
                   </div>
 
                   <div className="space-y-4">
                     {keepDonateBucket.map((item) => (
                       <div
                         key={item.id}
-                        className="relative rounded-xl border border-zinc-200 bg-zinc-100/50 p-5 dark:border-zinc-800/50 dark:bg-zinc-900/10"
+                        className="relative overflow-hidden rounded-card border border-line bg-surface-2 p-5"
                       >
                         {item.isUpdating && (
-                          <div className="absolute inset-0 bg-white/60 dark:bg-zinc-900/60 backdrop-blur-xs flex items-center justify-center z-10 rounded-xl">
+                          <div className="absolute inset-0 z-10 flex items-center justify-center rounded-card bg-surface/70 backdrop-blur-xs">
                             <svg
-                              className="animate-spin h-6 w-6 text-brand dark:text-emerald-500"
+                              className="animate-spin h-6 w-6 text-green-600"
                               fill="none"
                               viewBox="0 0 24 24"
                             >
@@ -1059,10 +1108,10 @@ export default function Home() {
 
                         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                           <div>
-                            <h4 className="font-bold text-sm text-zinc-600 dark:text-zinc-300 leading-tight">
+                            <h4 className="font-serif text-lg font-semibold leading-snug text-ink-soft">
                               {item.comparables[0]?.title || item.query.title}
                             </h4>
-                            <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5">
+                            <p className="mt-0.5 text-sm text-ink-soft">
                               {t("card_by_author")}
                               {item.comparables[0]?.author ||
                                 item.query.author ||
@@ -1075,20 +1124,26 @@ export default function Home() {
                             {item.estimation.hasEstimate && (
                               <>
                                 {item.estimation.demandStatus === "high" && (
-                                  <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
-                                    {t("demand_badge_low_stock", { count: item.estimation.activeCopies })}
+                                  <span className="inline-flex items-center rounded-full bg-green-bg px-2 py-0.5 text-[10px] font-semibold text-green-700">
+                                    {t("demand_badge_low_stock", {
+                                      count: item.estimation.activeCopies,
+                                    })}
                                   </span>
                                 )}
                                 {item.estimation.demandStatus ===
                                   "moderate" && (
-                                  <span className="inline-flex items-center rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-semibold text-zinc-700 dark:bg-zinc-800/30 dark:text-zinc-300">
-                                    {t("demand_badge_supply", { count: item.estimation.activeCopies })}
+                                  <span className="inline-flex items-center rounded-full bg-surface px-2 py-0.5 text-[10px] font-semibold text-ink-soft">
+                                    {t("demand_badge_supply", {
+                                      count: item.estimation.activeCopies,
+                                    })}
                                   </span>
                                 )}
                                 {item.estimation.demandStatus ===
                                   "oversupplied" && (
-                                  <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800 dark:bg-amber-950/50 dark:text-amber-400">
-                                    {t("demand_badge_oversupplied", { count: item.estimation.activeCopies })}
+                                  <span className="inline-flex items-center rounded-full bg-amber-bg px-2 py-0.5 text-[10px] font-semibold text-amber">
+                                    {t("demand_badge_oversupplied", {
+                                      count: item.estimation.activeCopies,
+                                    })}
                                   </span>
                                 )}
                               </>
@@ -1098,7 +1153,7 @@ export default function Home() {
                             <button
                               onClick={() => handleRemoveBook(item.id)}
                               aria-label="Remove book"
-                              className="text-zinc-500 hover:text-red-500 dark:text-zinc-400 p-1 rounded-md transition-colors cursor-pointer"
+                              className="cursor-pointer rounded-md p-1 text-ink-faint transition-colors hover:text-red"
                             >
                               <svg
                                 className="h-4 w-4"
@@ -1118,12 +1173,12 @@ export default function Home() {
                         </div>
 
                         {/* Interactive fields row */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 pt-3 border-t border-zinc-200/40 dark:border-zinc-800/40 text-xs">
+                        <div className="mt-4 grid grid-cols-1 gap-4 border-t border-line pt-3 text-xs sm:grid-cols-2">
                           {/* Inline condition selector (re-triggers action) */}
                           <div className="flex items-center gap-2">
                             <label
                               htmlFor={`condition-${item.id}`}
-                              className="text-zinc-600 dark:text-zinc-400 font-semibold"
+                              className="font-semibold text-ink-soft"
                             >
                               {t("form_label_condition")}:
                             </label>
@@ -1140,39 +1195,49 @@ export default function Home() {
                                     | "worn"
                                 )
                               }
-                              className="rounded border border-zinc-200 bg-zinc-50/50 px-1.5 py-0.5 text-xs outline-none dark:border-zinc-800 dark:bg-zinc-950 font-medium text-zinc-800 dark:text-zinc-200"
+                              className="rounded-input border border-line bg-surface px-1.5 py-0.5 text-xs font-medium text-ink outline-none"
                             >
-                              <option value="new">{t("card_condition_new_option")}</option>
-                              <option value="verygood">{t("card_condition_verygood_option")}</option>
-                              <option value="good">{t("card_condition_good_option")}</option>
-                              <option value="worn">{t("card_condition_worn_option")}</option>
+                              <option value="new">
+                                {t("card_condition_new_option")}
+                              </option>
+                              <option value="verygood">
+                                {t("card_condition_verygood_option")}
+                              </option>
+                              <option value="good">
+                                {t("card_condition_good_option")}
+                              </option>
+                              <option value="worn">
+                                {t("card_condition_worn_option")}
+                              </option>
                             </select>
                           </div>
 
-                          <div className="flex flex-col text-right justify-end sm:items-end">
+                          <div className="flex flex-col justify-end text-right sm:items-end">
                             {item.estimation.hasEstimate ? (
                               <>
-                                <div className="flex justify-between sm:justify-end gap-1.5">
-                                  <span className="text-zinc-600 dark:text-zinc-400">
+                                <div className="flex justify-between gap-1.5 sm:justify-end">
+                                  <span className="text-ink-soft">
                                     {t("card_retail_label")}{" "}
                                   </span>
-                                  <strong className="font-semibold text-zinc-950 dark:text-white">
+                                  <strong className="num font-semibold text-ink">
                                     {item.estimation.priceMin}–
                                     {item.estimation.priceMax} {t("currency")}
                                   </strong>
                                 </div>
-                                <span className="block text-[10px] text-zinc-600 dark:text-zinc-400">
-                                  {t("card_based_on_comparables", { count: item.estimation.comparableCount })}
+                                <span className="block text-[10px] text-ink-faint">
+                                  {t("card_based_on_comparables", {
+                                    count: item.estimation.comparableCount,
+                                  })}
                                 </span>
-                                <div className="flex justify-between sm:justify-end gap-1.5 mt-1 sm:mt-0">
-                                  <span className="text-amber-800 dark:text-amber-400 font-bold">
+                                <div className="mt-1 flex justify-between gap-1.5 sm:mt-0 sm:justify-end">
+                                  <span className="font-bold text-amber">
                                     {t("card_below_limit_label")}
                                   </span>
                                 </div>
                               </>
                             ) : (
                               <div>
-                                <span className="text-zinc-600 dark:text-zinc-400 font-semibold italic">
+                                <span className="font-semibold italic text-ink-soft">
                                   {t("card_no_comparables_label")}
                                 </span>
                               </div>
@@ -1182,7 +1247,7 @@ export default function Home() {
 
                         {item.updateError && (
                           <div
-                            className="mt-2 text-xs font-semibold text-red-500 bg-red-50/50 border border-red-200/50 p-2 rounded-lg dark:bg-red-950/10 dark:border-red-900/30"
+                            className="mt-2 rounded-input border border-red/30 bg-red-bg p-2 text-xs font-semibold text-red"
                             role="alert"
                           >
                             {item.updateError}
@@ -1195,16 +1260,16 @@ export default function Home() {
 
                         {/* No-data honest context card (B1 resolved) */}
                         {!item.estimation.hasEstimate && (
-                          <div className="mt-4 p-4 rounded-lg border border-zinc-200 bg-zinc-50/50 dark:border-zinc-800/80 dark:bg-zinc-950/20 space-y-2">
-                            <h5 className="text-[10px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
+                          <div className="mt-4 space-y-2 rounded-input border border-line bg-surface p-4">
+                            <h5 className="text-[10px] font-bold uppercase tracking-wider text-ink-faint">
                               {t("card_no_comparables_title")}
                             </h5>
-                            <p className="text-[10px] text-zinc-600 dark:text-zinc-400 leading-normal">
+                            <p className="text-[10px] leading-normal text-ink-soft">
                               {t("card_no_comparables_text", {
                                 p25Price: item.referenceStats.p25Price,
                                 p75Price: item.referenceStats.p75Price,
                                 p25Payout: item.referenceStats.p25Payout,
-                                p75Payout: item.referenceStats.p75Payout
+                                p75Payout: item.referenceStats.p75Payout,
                               })}
                             </p>
                           </div>
@@ -1244,13 +1309,16 @@ export default function Home() {
           role="dialog"
           aria-modal="true"
           aria-labelledby="checkout-dialog-title"
-          className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-zinc-950/80 backdrop-blur-md p-4"
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/70 backdrop-blur-sm p-4"
         >
-          <div className="relative w-full max-w-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col p-6 space-y-4">
+          <div className="relative flex w-full max-w-md flex-col space-y-4 overflow-hidden rounded-card border border-line bg-surface p-6 shadow-paper">
             <div className="flex justify-between items-start">
-              <h3 id="checkout-dialog-title" className="text-base font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
+              <h3
+                id="checkout-dialog-title"
+                className="flex items-center gap-1.5 font-serif text-lg font-semibold text-ink"
+              >
                 <svg
-                  className="h-5 w-5 text-brand dark:text-emerald-500"
+                  className="h-5 w-5 text-green-600"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -1267,22 +1335,34 @@ export default function Home() {
               <button
                 onClick={() => setIsCheckoutModalOpen(false)}
                 aria-label="Close dialog"
-                className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 p-1 rounded-md transition-colors cursor-pointer"
+                className="cursor-pointer rounded-md p-1 text-ink-faint transition-colors hover:text-ink"
               >
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                <svg
+                  className="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               </button>
             </div>
 
-            <div className="space-y-3 text-xs text-zinc-600 dark:text-zinc-400 leading-normal">
+            <div className="space-y-3 text-xs leading-normal text-ink-soft">
               <p>
-                <strong>{t("checkout_body_p1")}</strong>
+                <strong className="text-ink">{t("checkout_body_p1")}</strong>
               </p>
-              <p>
-                {t("checkout_body_p2")}
-              </p>
-              <p dangerouslySetInnerHTML={{ __html: t("checkout_body_p3", { count: sendBucket.length }) }} />
+              <p>{t("checkout_body_p2")}</p>
+              <p
+                dangerouslySetInnerHTML={{
+                  __html: t("checkout_body_p3", { count: sendBucket.length }),
+                }}
+              />
             </div>
 
             <div className="flex flex-col gap-2 pt-2">
@@ -1291,19 +1371,19 @@ export default function Home() {
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => setIsCheckoutModalOpen(false)}
-                className="inline-flex h-10 items-center justify-center rounded-lg bg-brand px-4 text-xs font-bold text-white hover:bg-brand/95 transition-all text-center dark:bg-emerald-700 dark:hover:bg-emerald-600 cursor-pointer"
+                className="inline-flex h-11 cursor-pointer items-center justify-center rounded-full bg-green-600 px-4 text-center text-sm font-bold text-on-green transition-all hover:bg-green-700"
               >
                 {t("checkout_cta_primary")}
               </a>
               <button
                 onClick={handleSimulateCheckout}
-                className="inline-flex h-10 items-center justify-center rounded-lg border border-zinc-200 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-800/85 px-4 text-xs font-bold text-zinc-800 dark:text-zinc-200 cursor-pointer transition-colors"
+                className="inline-flex h-11 cursor-pointer items-center justify-center rounded-full border border-line-strong px-4 text-sm font-bold text-ink transition-colors hover:bg-surface-2"
               >
                 {t("checkout_cta_secondary")}
               </button>
               <button
                 onClick={() => setIsCheckoutModalOpen(false)}
-                className="text-center text-[10px] text-zinc-500 hover:underline cursor-pointer"
+                className="cursor-pointer text-center text-[11px] text-ink-faint hover:underline"
               >
                 {t("checkout_cancel")}
               </button>
@@ -1320,12 +1400,12 @@ export default function Home() {
     const isPeekOpen = !!expandedPeeks[item.id];
 
     return (
-      <div className="mt-3 border-t border-zinc-100 dark:border-zinc-800/50 pt-2 flex flex-col gap-2">
+      <div className="mt-3 flex flex-col gap-2 border-t border-line pt-2">
         {/* Math explanation (Principle 2) */}
-        <details className="group/details text-[11px] font-medium text-zinc-600 dark:text-zinc-400">
-          <summary className="cursor-pointer select-none py-1 hover:text-zinc-800 dark:hover:text-zinc-200 list-none flex items-center gap-1 outline-none">
+        <details className="group/details text-[11px] font-medium text-ink-soft">
+          <summary className="flex cursor-pointer list-none select-none items-center gap-1 py-1 outline-none hover:text-ink">
             <svg
-              className="h-3 w-3 transition-transform group-open/details:rotate-90 text-zinc-500 dark:text-zinc-400"
+              className="h-3 w-3 text-ink-faint transition-transform group-open/details:rotate-90"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -1339,24 +1419,28 @@ export default function Home() {
             </svg>
             <span>{t("math_toggle_label")}</span>
           </summary>
-          <div className="mt-2 p-3 rounded-lg border border-zinc-100 bg-zinc-50/50 dark:border-zinc-800/50 dark:bg-zinc-900/20 space-y-2">
+          <div className="mt-2 space-y-2 rounded-input border border-line bg-surface-2 p-3">
             <div className="flex justify-between">
               <span>{t("math_min_estimate_label")}</span>
               <span>
                 {item.estimation.payoutMin.isBelowThreshold ? (
-                  <span className="text-amber-800 dark:text-amber-400 font-semibold">
+                  <span className="font-semibold text-amber">
                     {t("math_below_threshold", { limit: 50 })}
                   </span>
                 ) : (
-                  <span dangerouslySetInnerHTML={{
-                    __html: t("math_formula_result", {
-                      listPrice: item.estimation.payoutMin.listPrice,
-                      percent: item.estimation.payoutMin.sellerSharePercent * 100,
-                      shareAmount: item.estimation.payoutMin.sellerShareAmount,
-                      fee: item.estimation.payoutMin.fixedFee,
-                      payout: item.estimation.payoutMin.payout
-                    })
-                  }} />
+                  <span
+                    dangerouslySetInnerHTML={{
+                      __html: t("math_formula_result", {
+                        listPrice: item.estimation.payoutMin.listPrice,
+                        percent:
+                          item.estimation.payoutMin.sellerSharePercent * 100,
+                        shareAmount:
+                          item.estimation.payoutMin.sellerShareAmount,
+                        fee: item.estimation.payoutMin.fixedFee,
+                        payout: item.estimation.payoutMin.payout,
+                      }),
+                    }}
+                  />
                 )}
               </span>
             </div>
@@ -1364,19 +1448,23 @@ export default function Home() {
               <span>{t("math_max_estimate_label")}</span>
               <span>
                 {item.estimation.payoutMax.isBelowThreshold ? (
-                  <span className="text-amber-800 dark:text-amber-400 font-semibold">
+                  <span className="font-semibold text-amber">
                     {t("math_below_threshold", { limit: 50 })}
                   </span>
                 ) : (
-                  <span dangerouslySetInnerHTML={{
-                    __html: t("math_formula_result", {
-                      listPrice: item.estimation.payoutMax.listPrice,
-                      percent: item.estimation.payoutMax.sellerSharePercent * 100,
-                      shareAmount: item.estimation.payoutMax.sellerShareAmount,
-                      fee: item.estimation.payoutMax.fixedFee,
-                      payout: item.estimation.payoutMax.payout
-                    })
-                  }} />
+                  <span
+                    dangerouslySetInnerHTML={{
+                      __html: t("math_formula_result", {
+                        listPrice: item.estimation.payoutMax.listPrice,
+                        percent:
+                          item.estimation.payoutMax.sellerSharePercent * 100,
+                        shareAmount:
+                          item.estimation.payoutMax.sellerShareAmount,
+                        fee: item.estimation.payoutMax.fixedFee,
+                        payout: item.estimation.payoutMax.payout,
+                      }),
+                    }}
+                  />
                 )}
               </span>
             </div>
@@ -1390,7 +1478,7 @@ export default function Home() {
             aria-expanded={isPeekOpen}
             aria-controls={`peek-${item.id}`}
             onClick={() => togglePeek(item.id)}
-            className="flex items-center gap-1 py-1 hover:text-zinc-800 dark:hover:text-zinc-200 text-[11px] font-semibold text-zinc-600 dark:text-zinc-400 outline-none transition-colors cursor-pointer"
+            className="flex cursor-pointer items-center gap-1 py-1 text-[11px] font-semibold text-ink-soft outline-none transition-colors hover:text-ink"
           >
             <svg
               className={`h-3 w-3 transform transition-transform duration-200 ${isPeekOpen ? "rotate-90" : ""}`}
@@ -1405,36 +1493,37 @@ export default function Home() {
                 d="M9 5l7 7-7 7"
               />
             </svg>
-            <span>{t("peek_comparables_button", { count: item.estimation.comparableCount })}</span>
+            <span>
+              {t("peek_comparables_button", {
+                count: item.estimation.comparableCount,
+              })}
+            </span>
           </button>
 
           {isPeekOpen && (
             <div
               id={`peek-${item.id}`}
-              className="mt-2 rounded-lg border border-zinc-200 overflow-hidden dark:border-zinc-800"
+              className="mt-2 overflow-hidden rounded-input border border-line"
             >
               <div className="max-h-48 overflow-y-auto">
-                <table className="w-full text-left border-collapse text-[10px]">
-                  <thead className="bg-zinc-50 text-zinc-600 dark:text-zinc-400 font-semibold sticky top-0 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800">
+                <table className="w-full border-collapse text-left text-[10px]">
+                  <thead className="sticky top-0 border-b border-line bg-surface-2 font-semibold text-ink-soft">
                     <tr>
                       <th className="p-2">{t("peek_col_condition")}</th>
                       <th className="p-2 text-right">{t("peek_col_price")}</th>
                       <th className="p-2 text-right">{t("peek_col_stock")}</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/50 dark:bg-zinc-900/10">
+                  <tbody className="divide-y divide-line">
                     {item.comparables.slice(0, 20).map((comp, idx) => (
-                      <tr
-                        key={idx}
-                        className="hover:bg-zinc-50/50 dark:hover:bg-zinc-950/20"
-                      >
-                        <td className="p-2 capitalize font-mono text-[9px]">
+                      <tr key={idx} className="hover:bg-surface-2">
+                        <td className="p-2 text-[9px] capitalize text-ink-soft">
                           {comp.condition}
                         </td>
-                        <td className="p-2 text-right font-semibold text-zinc-900 dark:text-zinc-100">
+                        <td className="num p-2 text-right font-semibold text-ink">
                           {comp.listPriceCzk} {t("currency")}
                         </td>
-                        <td className="p-2 text-right text-zinc-600 dark:text-zinc-400">
+                        <td className="num p-2 text-right text-ink-soft">
                           {comp.activeCopies}
                         </td>
                       </tr>
@@ -1443,7 +1532,7 @@ export default function Home() {
                 </table>
               </div>
               {item.comparables.length > 20 && (
-                <div className="bg-zinc-50 border-t border-zinc-200 p-2 text-center text-[9px] text-zinc-600 dark:text-zinc-400 font-medium dark:bg-zinc-900 dark:border-zinc-800">
+                <div className="num border-t border-line bg-surface-2 p-2 text-center text-[9px] font-medium text-ink-faint">
                   {t("peek_showing_top", { total: item.comparables.length })}
                 </div>
               )}

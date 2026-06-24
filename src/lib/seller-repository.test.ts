@@ -30,24 +30,24 @@ describe("seller-repository", () => {
   it("should return empty list when running server-side (window undefined)", () => {
     // Temporarily remove window stub to simulate server-side environment
     vi.stubGlobal("window", undefined);
-    
+
     const shipments = getShipments();
     expect(shipments).toEqual([]);
-    
+
     // Restore window stub
     vi.stubGlobal("window", {});
   });
 
   it("should initialize localStorage with default mock shipments on first client call", () => {
     expect(localStorage.getItem("seller_shipments")).toBeNull();
-    
+
     const shipments = getShipments();
-    
+
     expect(shipments).toHaveLength(3);
     expect(shipments[0].id).toBe("KH-8942-A");
     expect(shipments[1].id).toBe("KH-7381-B");
     expect(shipments[2].id).toBe("KH-4102-C");
-    
+
     // Check if it saved to localStorage
     const savedData = localStorage.getItem("seller_shipments");
     expect(savedData).not.toBeNull();
@@ -57,18 +57,18 @@ describe("seller-repository", () => {
   it("should add a new shipment successfully", () => {
     // Initialize
     getShipments();
-    
+
     const newItems = [
       {
         title: "Test Book Title",
         author: "Test Author",
         condition: "good" as const,
         payoutCzk: 100,
-      }
+      },
     ];
-    
+
     const added = addShipment(newItems, 100, 150);
-    
+
     expect(added.id).toMatch(/^KH-\d{4}-[A-Z]$/);
     expect(added.status).toBe("received");
     expect(added.expectedPayoutMin).toBe(100);
@@ -81,7 +81,7 @@ describe("seller-repository", () => {
       condition: "good",
       status: "received",
     });
-    
+
     // Fetch all shipments and verify the new one is first (descending date order)
     const list = getShipments();
     expect(list).toHaveLength(4);

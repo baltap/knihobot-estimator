@@ -63,16 +63,30 @@ describe("translations", () => {
     expect(translate("en", "dashboard_date_today")).toBe("today");
     expect(translate("cs", "dashboard_date_today")).toBe("dnes");
 
-    expect(translate("en", "dashboard_date_days_ago", { count: 2 })).toBe("2 days ago");
-    expect(translate("cs", "dashboard_date_days_ago", { count: 2 })).toBe("před 2 dny");
-    expect(translate("cs", "dashboard_date_days_ago", { count: 5 })).toBe("před 5 dny");
+    expect(translate("en", "dashboard_date_days_ago", { count: 2 })).toBe(
+      "2 days ago"
+    );
+    expect(translate("cs", "dashboard_date_days_ago", { count: 2 })).toBe(
+      "před 2 dny"
+    );
+    expect(translate("cs", "dashboard_date_days_ago", { count: 5 })).toBe(
+      "před 5 dny"
+    );
   });
 
   it("should look up barcode and spine scanner keys", () => {
-    expect(translate("en", "scanner_added_no_comparables", { isbn: "123" })).toBe("Added: ISBN 123 (no comparables, see shelf)");
-    expect(translate("cs", "scanner_added_no_comparables", { isbn: "123" })).toBe("Přidáno: ISBN 123 (srovnatelné nabídky nenalezeny, viz police)");
+    expect(
+      translate("en", "scanner_added_no_comparables", { isbn: "123" })
+    ).toBe("Added: ISBN 123 (no comparables, see shelf)");
+    expect(
+      translate("cs", "scanner_added_no_comparables", { isbn: "123" })
+    ).toBe("Přidáno: ISBN 123 (srovnatelné nabídky nenalezeny, viz police)");
 
-    expect(translate("en", "scanner_found_cameras", { count: 3 })).toBe("Found 3 cameras");
-    expect(translate("cs", "scanner_found_cameras", { count: 3 })).toBe("Nalezeny 3 fotoaparáty");
+    expect(translate("en", "scanner_found_cameras", { count: 3 })).toBe(
+      "Found 3 cameras"
+    );
+    expect(translate("cs", "scanner_found_cameras", { count: 3 })).toBe(
+      "Nalezeny 3 fotoaparáty"
+    );
   });
 });

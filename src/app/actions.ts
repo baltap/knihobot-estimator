@@ -90,7 +90,10 @@ export async function analyzeSpinePhoto(
 ): Promise<AnalyzeSpineResponse> {
   try {
     // 1. Extract titles and authors from photo
-    const extractedBooks = await extractBookTitlesFromSpine(base64Data, mimeType);
+    const extractedBooks = await extractBookTitlesFromSpine(
+      base64Data,
+      mimeType
+    );
 
     // 2. Query repository to match catalog items
     const books: SpineMatchResult[] = [];
@@ -105,12 +108,18 @@ export async function analyzeSpinePhoto(
 
         const comparables = await repository.findComparables(query);
         const activeCopies = await repository.countActiveCopies(query);
-        
+
         // Compute estimates using the user's selected condition
         const estimation = estimateBook(comparables, activeCopies, condition);
 
-        const refPayoutMin = calculatePayout(CATALOG_WIDE_STATS.p25, false).payout;
-        const refPayoutMax = calculatePayout(CATALOG_WIDE_STATS.p75, false).payout;
+        const refPayoutMin = calculatePayout(
+          CATALOG_WIDE_STATS.p25,
+          false
+        ).payout;
+        const refPayoutMax = calculatePayout(
+          CATALOG_WIDE_STATS.p75,
+          false
+        ).payout;
 
         books.push({
           extractedTitle: book.title,
@@ -130,7 +139,10 @@ export async function analyzeSpinePhoto(
           },
         });
       } catch (err) {
-        console.error(`Error matching catalog for spine extraction: ${book.title}`, err);
+        console.error(
+          `Error matching catalog for spine extraction: ${book.title}`,
+          err
+        );
         // Include as unmatched
         books.push({
           extractedTitle: book.title,
@@ -148,12 +160,15 @@ export async function analyzeSpinePhoto(
     console.error("Spine photo analysis server-side error:", err);
     const msg = err instanceof Error ? err.message : "";
     let errorCode = "GENERIC_ERROR";
-    
+
     if (msg.includes("timed out")) {
       errorCode = "API_TIMEOUT";
     } else if (msg.includes("Empty response")) {
       errorCode = "EMPTY_RESPONSE";
-    } else if (msg.includes("did not return a JSON array") || msg.includes("JSON")) {
+    } else if (
+      msg.includes("did not return a JSON array") ||
+      msg.includes("JSON")
+    ) {
       errorCode = "MALFORMED_RESPONSE";
     }
 

@@ -7,11 +7,18 @@ export interface ExtractedBook {
 }
 
 // Timeout helper (Promise-based)
-function timeoutPromise<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+function timeoutPromise<T>(
+  promise: Promise<T>,
+  ms: number,
+  label: string
+): Promise<T> {
   return Promise.race([
     promise,
     new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error(`${label} request timed out after ${ms}ms`)), ms)
+      setTimeout(
+        () => reject(new Error(`${label} request timed out after ${ms}ms`)),
+        ms
+      )
     ),
   ]);
 }
@@ -33,7 +40,7 @@ export async function extractBookTitlesFromSpine(
     );
     // Simulate 2.5-second processing latency
     await new Promise((resolve) => setTimeout(resolve, 2500));
-    
+
     // Return 3 popular books directly from the snapshot database
     return [
       { title: "15 roků lásky", author: "Patrik Hartl" },

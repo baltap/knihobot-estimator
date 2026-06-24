@@ -28,7 +28,7 @@ const STORAGE_KEY = "seller_shipments";
 // Helper to generate dynamic mock shipments relative to current time
 export function generateMockShipments(): Shipment[] {
   const now = new Date();
-  
+
   // Date calculations
   const twoDaysAgo = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000);
   const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
@@ -36,7 +36,7 @@ export function generateMockShipments(): Shipment[] {
   const fortyFiveDaysAgo = new Date(now.getTime() - 45 * 24 * 60 * 60 * 1000);
   const thirtySevenDaysAgo = new Date(now.getTime() - 37 * 24 * 60 * 60 * 1000);
   const thirtyThreeDaysAgo = new Date(now.getTime() - 33 * 24 * 60 * 60 * 1000);
-  
+
   // Knihobot payouts occur on the 10th of the month following the sale (after return period)
   // For Shipment 3, we set paidAt to 10 days ago
   const tenDaysAgo = new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000);
@@ -64,8 +64,8 @@ export function generateMockShipments(): Shipment[] {
           author: "Paula Hawkins",
           condition: "good",
           status: "received",
-        }
-      ]
+        },
+      ],
     },
     {
       id: "KH-7381-B",
@@ -92,8 +92,8 @@ export function generateMockShipments(): Shipment[] {
           status: "listed",
           listPriceCzk: 240,
           payoutCzk: 115,
-        }
-      ]
+        },
+      ],
     },
     {
       id: "KH-4102-C",
@@ -123,9 +123,9 @@ export function generateMockShipments(): Shipment[] {
           payoutCzk: 55,
           soldAt: thirtyThreeDaysAgo.toISOString(),
           paidAt: tenDaysAgo.toISOString(),
-        }
-      ]
-    }
+        },
+      ],
+    },
   ];
 }
 
@@ -151,7 +151,13 @@ export function getShipments(): Shipment[] {
 
 // Adds a new shipment from shelf items (B1)
 export function addShipment(
-  items: { title: string; author: string; isbn?: string; condition: "new" | "verygood" | "good" | "worn"; payoutCzk: number }[],
+  items: {
+    title: string;
+    author: string;
+    isbn?: string;
+    condition: "new" | "verygood" | "good" | "worn";
+    payoutCzk: number;
+  }[],
   expectedPayoutMin: number,
   expectedPayoutMax: number
 ): Shipment {

@@ -9,7 +9,9 @@ interface LanguageContextType {
   t: (key: string, params?: TranslationParams) => string;
 }
 
-const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
+const LanguageContext = createContext<LanguageContextType | undefined>(
+  undefined
+);
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
   // Default to English ("en") as approved so English evaluators don't face friction.

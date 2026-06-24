@@ -33,17 +33,29 @@ describe("spine-analyzer", () => {
     // Force empty API key env context
     process.env = { ...originalEnv, GEMINI_API_KEY: "" };
 
-    const extractionPromise = extractBookTitlesFromSpine("base64dummystring", "image/jpeg");
-    
+    const extractionPromise = extractBookTitlesFromSpine(
+      "base64dummystring",
+      "image/jpeg"
+    );
+
     // Fast-forward fake timers to resolve the simulated 2.5s delay
     vi.advanceTimersByTime(2500);
 
     const result = await extractionPromise;
 
     expect(result).toHaveLength(3);
-    expect(result[0]).toEqual({ title: "15 roků lásky", author: "Patrik Hartl" });
-    expect(result[1]).toEqual({ title: "Gump. Pes, který naučil lidi žít", author: "Filip Rožek" });
-    expect(result[2]).toEqual({ title: "Dívka ve vlaku", author: "Paula Hawkins" });
+    expect(result[0]).toEqual({
+      title: "15 roků lásky",
+      author: "Patrik Hartl",
+    });
+    expect(result[1]).toEqual({
+      title: "Gump. Pes, který naučil lidi žít",
+      author: "Filip Rožek",
+    });
+    expect(result[2]).toEqual({
+      title: "Dívka ve vlaku",
+      author: "Paula Hawkins",
+    });
 
     // Restore environment
     process.env = originalEnv;
@@ -61,11 +73,16 @@ describe("spine-analyzer", () => {
       text: mockResponseText,
     });
 
-    const result = await extractBookTitlesFromSpine("base64dummystring", "image/jpeg");
+    const result = await extractBookTitlesFromSpine(
+      "base64dummystring",
+      "image/jpeg"
+    );
 
-    expect(mockGenerateContent).toHaveBeenCalledWith(expect.objectContaining({
-      model: "gemini-3-flash-preview",
-    }));
+    expect(mockGenerateContent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: "gemini-3-flash-preview",
+      })
+    );
     expect(result).toHaveLength(2);
     expect(result[0]).toEqual({ title: "Test Book 1", author: "Author 1" });
     expect(result[1]).toEqual({ title: "Test Book 2", author: "Author 2" });
@@ -107,12 +124,17 @@ describe("spine-analyzer", () => {
     // Promise that never resolves
     mockGenerateContent.mockReturnValue(new Promise(() => {}));
 
-    const promise = extractBookTitlesFromSpine("base64dummystring", "image/jpeg");
+    const promise = extractBookTitlesFromSpine(
+      "base64dummystring",
+      "image/jpeg"
+    );
 
     // Fast-forward fake timers by 25 seconds
     vi.advanceTimersByTime(25000);
 
-    await expect(promise).rejects.toThrow("Gemini API request timed out after 25000ms");
+    await expect(promise).rejects.toThrow(
+      "Gemini API request timed out after 25000ms"
+    );
 
     process.env = originalEnv;
   });

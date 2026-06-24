@@ -1,7 +1,11 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { Html5Qrcode, Html5QrcodeSupportedFormats, CameraDevice } from "html5-qrcode";
+import {
+  Html5Qrcode,
+  Html5QrcodeSupportedFormats,
+  CameraDevice,
+} from "html5-qrcode";
 import { Button } from "@/components/ui/button";
 import { isValidIsbn13 } from "@/lib/isbn-validator";
 import { useLanguage } from "@/components/language-provider";
@@ -130,7 +134,7 @@ export default function BarcodeScanner({
       }
       setScannerState("warning");
       setErrorMessage(t("scanner_err_not_book"));
-      
+
       // Auto-resume after 2.5s
       if (resumeTimeoutRef.current) clearTimeout(resumeTimeoutRef.current);
       resumeTimeoutRef.current = setTimeout(() => {
@@ -159,9 +163,15 @@ export default function BarcodeScanner({
         playSuccessChime();
         setScannerState("success");
         if (result.isNoComparables) {
-          setSuccessMessage(t("scanner_added_no_comparables", { isbn: normalized }));
+          setSuccessMessage(
+            t("scanner_added_no_comparables", { isbn: normalized })
+          );
         } else if (result.payoutMax === 0) {
-          setSuccessMessage(t("scanner_added_below_threshold", { title: result.title || t("scanner_default_book_title") }));
+          setSuccessMessage(
+            t("scanner_added_below_threshold", {
+              title: result.title || t("scanner_default_book_title"),
+            })
+          );
         } else {
           setSuccessMessage(
             t("scanner_added_success", {
@@ -174,7 +184,9 @@ export default function BarcodeScanner({
         }
       } else {
         setScannerState("warning");
-        setErrorMessage(result.error ? t(result.error) : t("scanner_err_lookup_failed"));
+        setErrorMessage(
+          result.error ? t(result.error) : t("scanner_err_lookup_failed")
+        );
       }
     } catch (err) {
       if (activeMountIdRef.current !== myMountId) return;
@@ -268,7 +280,7 @@ export default function BarcodeScanner({
   // Lifecycle initialization & teardown (StrictMode double-mount safe) (B1)
   useEffect(() => {
     if (typeof window === "undefined") return;
-    
+
     // Increment mount counter and capture this effect run's ID
     activeMountIdRef.current += 1;
     const myMountId = activeMountIdRef.current;
@@ -301,10 +313,11 @@ export default function BarcodeScanner({
         }
 
         // Try environment camera if available, otherwise default to first camera (N1)
-        const backCamera = devices.find((device) =>
-          device.label.toLowerCase().includes("back") ||
-          device.label.toLowerCase().includes("environment") ||
-          device.label.toLowerCase().includes("rear")
+        const backCamera = devices.find(
+          (device) =>
+            device.label.toLowerCase().includes("back") ||
+            device.label.toLowerCase().includes("environment") ||
+            device.label.toLowerCase().includes("rear")
         );
 
         const targetDevice = backCamera ? backCamera.id : devices[0].id;
@@ -372,7 +385,9 @@ export default function BarcodeScanner({
       className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-zinc-950/80 backdrop-blur-md p-4"
     >
       {/* CSS Styles injection for viewport and animations */}
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
         @keyframes laserScan {
           0% { top: 10%; }
           50% { top: 90%; }
@@ -389,13 +404,18 @@ export default function BarcodeScanner({
           pointer-events: none;
           z-index: 20;
         }
-      `}} />
+      `,
+        }}
+      />
 
       <div className="relative w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col">
         {/* Header */}
         <div className="px-5 py-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-900/90 sticky top-0 z-30">
           <div>
-            <h3 id="scanner-dialog-title" className="font-bold text-sm text-zinc-100">
+            <h3
+              id="scanner-dialog-title"
+              className="font-bold text-sm text-zinc-100"
+            >
               {t("scanner_dialog_title")}
             </h3>
             <p className="text-[10px] text-zinc-400 font-medium mt-0.5">
@@ -427,7 +447,10 @@ export default function BarcodeScanner({
         {/* Viewfinder Area */}
         <div className="relative aspect-square w-full bg-black flex flex-col items-center justify-center">
           {/* html5-qrcode target div */}
-          <div id={containerId} className="w-full h-full [&_video]:object-cover" />
+          <div
+            id={containerId}
+            className="w-full h-full [&_video]:object-cover"
+          />
 
           {/* HUD scan box visual borders */}
           {scannerState === "scanning" && (
@@ -546,9 +569,7 @@ export default function BarcodeScanner({
                   d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
                 />
               </svg>
-              <p className="text-xs font-bold text-amber-200">
-                {errorMessage}
-              </p>
+              <p className="text-xs font-bold text-amber-200">{errorMessage}</p>
             </div>
           )}
 
@@ -591,7 +612,9 @@ export default function BarcodeScanner({
           <div className="px-5 py-4 bg-zinc-900 border-t border-zinc-800 flex flex-col sm:flex-row items-center gap-3 justify-between">
             <div className="text-[10px] text-zinc-400 font-medium">
               {cameras.length > 1 ? (
-                <span>{t("scanner_found_cameras", { count: cameras.length })}</span>
+                <span>
+                  {t("scanner_found_cameras", { count: cameras.length })}
+                </span>
               ) : (
                 <span>{t("scanner_active_camera")}</span>
               )}

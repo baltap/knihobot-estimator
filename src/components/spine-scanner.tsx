@@ -13,7 +13,11 @@ interface SpineScannerProps {
 
 type Step = "upload" | "preview" | "analyzing" | "review" | "error";
 
-export default function SpineScanner({ onAddBooks, onClose, condition }: SpineScannerProps) {
+export default function SpineScanner({
+  onAddBooks,
+  onClose,
+  condition,
+}: SpineScannerProps) {
   const { t } = useLanguage();
   const [step, setStep] = useState<Step>("upload");
   const [selectedImage, setSelectedImage] = useState<string | null>(null); // base64 JPEG data URL
@@ -108,8 +112,12 @@ export default function SpineScanner({ onAddBooks, onClose, condition }: SpineSc
       const commaIndex = selectedImage.indexOf(",");
       const rawBase64 = selectedImage.substring(commaIndex + 1);
 
-      const response = await analyzeSpinePhoto(rawBase64, "image/jpeg", condition);
-      
+      const response = await analyzeSpinePhoto(
+        rawBase64,
+        "image/jpeg",
+        condition
+      );
+
       if (!activeRef.current) return;
 
       if (response.success && response.books) {
@@ -147,8 +155,14 @@ export default function SpineScanner({ onAddBooks, onClose, condition }: SpineSc
     const booksToAdd = results
       .filter((_, idx) => checkedBooks[idx])
       .map((item) => ({
-        title: item.matched && item.matchDetails ? item.matchDetails.title : item.extractedTitle,
-        author: item.matched && item.matchDetails ? item.matchDetails.author : item.extractedAuthor,
+        title:
+          item.matched && item.matchDetails
+            ? item.matchDetails.title
+            : item.extractedTitle,
+        author:
+          item.matched && item.matchDetails
+            ? item.matchDetails.author
+            : item.extractedAuthor,
       }));
 
     if (booksToAdd.length === 0) return;
@@ -179,7 +193,9 @@ export default function SpineScanner({ onAddBooks, onClose, condition }: SpineSc
       className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-zinc-950/80 backdrop-blur-md p-4"
     >
       {/* CSS Styles for laser line scanning preview */}
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
         @keyframes scanMotion {
           0% { transform: translateY(0); opacity: 0.8; }
           50% { transform: translateY(220px); opacity: 0.9; }
@@ -196,13 +212,18 @@ export default function SpineScanner({ onAddBooks, onClose, condition }: SpineSc
           pointer-events: none;
           z-index: 10;
         }
-      `}} />
+      `,
+        }}
+      />
 
       <div className="relative w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="px-5 py-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-900/90 sticky top-0 z-30">
           <div>
-            <h3 id="spine-dialog-title" className="font-bold text-sm text-zinc-100 flex items-center gap-1.5">
+            <h3
+              id="spine-dialog-title"
+              className="font-bold text-sm text-zinc-100 flex items-center gap-1.5"
+            >
               <span>{t("spine_dialog_title")}</span>
               <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-bold text-emerald-400 border border-emerald-500/20">
                 AI Beta
@@ -339,7 +360,8 @@ export default function SpineScanner({ onAddBooks, onClose, condition }: SpineSc
           {step === "review" && (
             <div className="p-4 space-y-4">
               <div className="p-3 bg-zinc-950/40 border border-zinc-800/80 rounded-lg text-[10px] text-zinc-400 leading-normal">
-                <strong>{t("spine_review_title")}</strong> {t("spine_review_desc")}
+                <strong>{t("spine_review_title")}</strong>{" "}
+                {t("spine_review_desc")}
               </div>
 
               <div className="border border-zinc-800 rounded-lg overflow-hidden max-h-[300px] overflow-y-auto">
@@ -354,7 +376,10 @@ export default function SpineScanner({ onAddBooks, onClose, condition }: SpineSc
                   <tbody className="divide-y divide-zinc-800 bg-zinc-900/10">
                     {results.length === 0 ? (
                       <tr>
-                        <td colSpan={3} className="p-6 text-center italic text-zinc-500">
+                        <td
+                          colSpan={3}
+                          className="p-6 text-center italic text-zinc-500"
+                        >
                           {t("spine_no_text_recognized")}
                         </td>
                       </tr>
@@ -365,7 +390,10 @@ export default function SpineScanner({ onAddBooks, onClose, condition }: SpineSc
                           onClick={() => handleToggleCheck(idx)}
                           className="hover:bg-zinc-950/20 cursor-pointer transition-colors"
                         >
-                          <td className="p-2.5 text-center" onClick={(e) => e.stopPropagation()}>
+                          <td
+                            className="p-2.5 text-center"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             <input
                               type="checkbox"
                               checked={!!checkedBooks[idx]}
@@ -378,22 +406,38 @@ export default function SpineScanner({ onAddBooks, onClose, condition }: SpineSc
                               {item.extractedTitle}
                             </span>
                             <span className="block text-[9px] text-zinc-500 mt-0.5">
-                              {t("card_by_author")}{item.extractedAuthor || t("spine_unknown_author")}
+                              {t("card_by_author")}
+                              {item.extractedAuthor ||
+                                t("spine_unknown_author")}
                             </span>
                           </td>
                           <td className="p-2.5">
                             {item.matched && item.matchDetails ? (
                               <div>
                                 <span className="block font-bold text-emerald-400 leading-tight">
-                                  {item.matchDetails.estimation.payoutMin.payout}–
-                                  {item.matchDetails.estimation.payoutMax.payout} {t("currency")}
+                                  {
+                                    item.matchDetails.estimation.payoutMin
+                                      .payout
+                                  }
+                                  –
+                                  {
+                                    item.matchDetails.estimation.payoutMax
+                                      .payout
+                                  }{" "}
+                                  {t("currency")}
                                 </span>
-                                <span className="block text-[9px] text-zinc-400 mt-0.5 truncate max-w-[140px]" title={item.matchDetails.title}>
+                                <span
+                                  className="block text-[9px] text-zinc-400 mt-0.5 truncate max-w-[140px]"
+                                  title={item.matchDetails.title}
+                                >
                                   {item.matchDetails.title}
                                 </span>
                               </div>
                             ) : (
-                              <div className="flex items-center gap-1 text-amber-500/90 font-semibold" title={t("spine_unmatched_desc")}>
+                              <div
+                                className="flex items-center gap-1 text-amber-500/90 font-semibold"
+                                title={t("spine_unmatched_desc")}
+                              >
                                 <svg
                                   className="h-3.5 w-3.5 text-amber-500"
                                   fill="none"
@@ -429,10 +473,18 @@ export default function SpineScanner({ onAddBooks, onClose, condition }: SpineSc
                   </Button>
                   <Button
                     onClick={handleBatchAdd}
-                    disabled={isAdding || results.filter((_, idx) => checkedBooks[idx]).length === 0}
+                    disabled={
+                      isAdding ||
+                      results.filter((_, idx) => checkedBooks[idx]).length === 0
+                    }
                     className="flex-1 bg-brand hover:bg-brand/95 text-xs text-white font-bold cursor-pointer h-9"
                   >
-                    {isAdding ? t("spine_adding_books") : t("spine_btn_add_books", { count: results.filter((_, idx) => checkedBooks[idx]).length })}
+                    {isAdding
+                      ? t("spine_adding_books")
+                      : t("spine_btn_add_books", {
+                          count: results.filter((_, idx) => checkedBooks[idx])
+                            .length,
+                        })}
                   </Button>
                 </div>
               )}

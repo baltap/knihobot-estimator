@@ -115,6 +115,10 @@ Make it feel trustworthy and founder-demo ready.
 
 - Language toggle; nods to the 9-market reality. Keep copy in a simple dictionary.
 
+### T6 — Visual Redesign · `IN REVIEW`
+
+- Apply the visual redesign matching the brand style guide and prototype template, including Hanken Grotesk and Source Serif 4 fonts, custom paper light/dark color tokens, tactile layout forms, price tag estimate cards, and pipeline timeline ledgers.
+
 ---
 
 ## Decisions log (Peter fills this in as we go)
