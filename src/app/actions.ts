@@ -146,9 +146,20 @@ export async function analyzeSpinePhoto(
     };
   } catch (err) {
     console.error("Spine photo analysis server-side error:", err);
+    const msg = err instanceof Error ? err.message : "";
+    let errorCode = "GENERIC_ERROR";
+    
+    if (msg.includes("timed out")) {
+      errorCode = "API_TIMEOUT";
+    } else if (msg.includes("Empty response")) {
+      errorCode = "EMPTY_RESPONSE";
+    } else if (msg.includes("did not return a JSON array") || msg.includes("JSON")) {
+      errorCode = "MALFORMED_RESPONSE";
+    }
+
     return {
       success: false,
-      error: err instanceof Error ? err.message : "AI analysis failed or was blocked by content filters. Please try again with a clearer picture.",
+      error: errorCode,
     };
   }
 }

@@ -4,10 +4,12 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { trackEvent } from "@/lib/analytics";
+import { useLanguage } from "@/components/language-provider";
 
 export default function Header() {
   const pathname = usePathname();
   const [theme, setTheme] = useState<"light" | "dark">("light");
+  const { language, setLanguage, t } = useLanguage();
 
   // Initial Theme Sync & Listener (N1)
   useEffect(() => {
@@ -67,7 +69,7 @@ export default function Header() {
               d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
             />
           </svg>
-          <span className="hidden sm:inline">Knihobot Seller Estimator</span>
+          <span className="hidden sm:inline">{t("header_title")}</span>
           <span className="inline sm:hidden text-base">Knihobot</span>
         </Link>
 
@@ -82,7 +84,7 @@ export default function Header() {
                   : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
               }`}
             >
-              Estimator
+              {t("header_estimator")}
             </Link>
             <Link
               href="/dashboard"
@@ -92,9 +94,33 @@ export default function Header() {
                   : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
               }`}
             >
-              Dashboard
+              {t("header_dashboard")}
             </Link>
           </nav>
+
+          {/* CZ/EN Language Toggle Switch (S4) */}
+          <div className="flex items-center gap-1 border border-zinc-200 dark:border-zinc-800 rounded-lg p-0.5 text-[9px] font-bold bg-zinc-50 dark:bg-zinc-900 select-none">
+            <button
+              onClick={() => setLanguage("cs")}
+              className={`px-1.5 py-0.5 rounded cursor-pointer transition-all ${
+                language === "cs"
+                  ? "bg-brand text-white dark:bg-emerald-600"
+                  : "text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200"
+              }`}
+            >
+              CZ
+            </button>
+            <button
+              onClick={() => setLanguage("en")}
+              className={`px-1.5 py-0.5 rounded cursor-pointer transition-all ${
+                language === "en"
+                  ? "bg-brand text-white dark:bg-emerald-600"
+                  : "text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200"
+              }`}
+            >
+              EN
+            </button>
+          </div>
 
           {/* Theme Toggle Button (N3) */}
           <button
@@ -136,7 +162,7 @@ export default function Header() {
           </button>
           
           <div className="hidden md:block text-[10px] text-zinc-500 dark:text-zinc-400 font-mono select-none">
-            Demo Mode
+            {t("header_demo_mode")}
           </div>
         </div>
       </div>

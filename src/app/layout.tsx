@@ -3,6 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AnalyticsProvider } from "@/components/analytics-provider";
 
+import { LanguageProvider } from "@/components/language-provider";
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -50,7 +52,9 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-full flex flex-col">
-        <AnalyticsProvider>{children}</AnalyticsProvider>
+        <LanguageProvider>
+          <AnalyticsProvider>{children}</AnalyticsProvider>
+        </LanguageProvider>
       </body>
     </html>
   );
