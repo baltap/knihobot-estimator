@@ -48,14 +48,6 @@ export const translations: Record<Language, Dictionary> = {
     shelf_empty: "Your shelf is empty",
     shelf_empty_desc: "Search and add books above to estimate your shipment value.",
     shelf_summary_title: "Shipment Estimate Summary",
-    shelf_summary_desc: {
-      _one: "Total expected payout range for the 1 book on your shelf:",
-      _many: "Total expected payout range for the {count} books on your shelf:",
-    },
-    shelf_sending_books_count: {
-      _one: "Sending {sendCount} of 1 book on your shelf",
-      _many: "Sending {sendCount} of {totalCount} books on your shelf",
-    },
     shelf_total_range_desc: "Estimated payout sum of the shipment bucket.",
     shelf_kept_locally: {
       _one: "1 kept/donated locally",
@@ -316,16 +308,6 @@ export const translations: Record<Language, Dictionary> = {
     shelf_empty: "Vaše police je prázdná",
     shelf_empty_desc: "Vyhledejte a přidejte knihy výše, abyste odhadli hodnotu zásilky.",
     shelf_summary_title: "Shrnutí odhadu zásilky",
-    shelf_summary_desc: {
-      _one: "Celková očekávaná výplata za 1 knihu na vaší polici:",
-      _few: "Celková očekávaná výplata za {count} knihy na vaší polici:",
-      _many: "Celková očekávaná výplata za {count} knih na vaší polici:",
-    },
-    shelf_sending_books_count: {
-      _one: "Odesíláte 1 z 1 knihy na vaší polici",
-      _few: "Odesíláte {sendCount} ze {totalCount} knih na vaší polici",
-      _many: "Odesíláte {sendCount} z {totalCount} knih na vaší polici",
-    },
     shelf_total_range_desc: "Odhadovaná částka k vyplacení z této zásilky.",
     shelf_kept_locally: {
       _one: "1 ponechána/darována lokálně",

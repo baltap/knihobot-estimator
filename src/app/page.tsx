@@ -558,8 +558,8 @@ export default function Home() {
               {t("form_add_title")}
             </h2>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
+            <div className="grid grid-cols-1 sm:grid-cols-5 gap-4">
+              <div className="sm:col-span-3">
                 <label
                   htmlFor="search-query"
                   className="block text-[10px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1"
@@ -573,7 +573,7 @@ export default function Home() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder={t("form_placeholder_isbn")}
-                    className="flex-1 rounded-lg border border-zinc-200 bg-zinc-50/50 px-3 py-2 text-sm placeholder-zinc-400 outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white dark:focus:border-emerald-500 dark:focus:ring-emerald-500/20 transition-all font-medium"
+                    className="flex-1 min-w-0 rounded-lg border border-zinc-200 bg-zinc-50/50 px-3 py-2 text-sm placeholder-zinc-400 outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white dark:focus:border-emerald-500 dark:focus:ring-emerald-500/20 transition-all font-medium"
                     aria-required="true"
                   />
                   <Button
@@ -635,7 +635,7 @@ export default function Home() {
 
               {/* Author (Only visible if not searching purely by ISBN) */}
               {!/^[0-9\s-]+$/.test(searchQuery.trim()) ? (
-                <div>
+                <div className="sm:col-span-2">
                   <label
                     htmlFor="author-query"
                     className="block text-[10px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1"
@@ -652,7 +652,7 @@ export default function Home() {
                   />
                 </div>
               ) : (
-                <div className="flex items-end text-xs text-zinc-600 dark:text-zinc-400 pb-3 font-medium">
+                <div className="sm:col-span-2 flex items-end text-xs text-zinc-600 dark:text-zinc-400 pb-3 font-medium">
                   {t("form_isbn_detected")}
                 </div>
               )}
