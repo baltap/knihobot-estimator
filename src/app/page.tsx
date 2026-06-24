@@ -155,6 +155,22 @@ export default function Home() {
     });
   };
 
+  // Demo one-click helper
+  const handleQuickFill = (isbn: string, title: string, author: string) => {
+    setSearchQuery(isbn);
+    setAuthorQuery(author);
+    setFormCondition("good");
+    startTransition(async () => {
+      try {
+        await addBookToShelf(isbn, author, "good", "manual");
+        setSearchQuery("");
+        setAuthorQuery("");
+      } catch (err) {
+        console.error(err);
+      }
+    });
+  };
+
   // Open barcode scanner modal (initializing audio context on click gesture)
   const handleOpenScanner = () => {
     if (!audioContextRef.current) {
@@ -754,6 +770,52 @@ export default function Home() {
                 </p>
               )}
             </form>
+          </div>
+          {/* Quick Demo Help Panel */}
+          <div className="mt-3.5 flex flex-col gap-2 px-2 sm:flex-row sm:items-center sm:gap-3.5">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-ink-soft">
+              {t("form_demo_help_title")}
+            </span>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() =>
+                  handleQuickFill("9788076111226", "Gazely", "Patrik Hartl")
+                }
+                className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-line bg-surface px-3.5 py-1 text-xs font-medium text-ink-soft hover:bg-surface-2 transition-all"
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-green-600" />
+                {t("form_demo_book_high")}
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  handleQuickFill(
+                    "9788024928609",
+                    "Dívka ve vlaku",
+                    "Paula Hawkins"
+                  )
+                }
+                className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-line bg-surface px-3.5 py-1 text-xs font-medium text-ink-soft hover:bg-surface-2 transition-all"
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-amber" />
+                {t("form_demo_book_over")}
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  handleQuickFill(
+                    "9788072273201",
+                    "Poslední aristokratka",
+                    "Evžen Boček"
+                  )
+                }
+                className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-line bg-surface px-3.5 py-1 text-xs font-medium text-ink-soft hover:bg-surface-2 transition-all"
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-red" />
+                {t("form_demo_book_low")}
+              </button>
+            </div>
           </div>
         </section>
 

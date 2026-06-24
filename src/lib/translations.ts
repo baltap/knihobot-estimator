@@ -24,6 +24,10 @@ export const translations: Record<Language, Dictionary> = {
     main_title: "Find out what your books are worth — before you send them.",
     main_description:
       "Build your shelf list below. Get transparent price ranges, itemized payout calculations, and stock warnings.",
+    form_demo_help_title: "Quick help for demo (click to add directly):",
+    form_demo_book_high: "Gazely (High demand)",
+    form_demo_book_over: "Dívka ve vlaku (Oversupplied)",
+    form_demo_book_low: "Poslední aristokratka (Below threshold)",
     form_add_title: "Add Book to Estimate Shelf",
     form_label_isbn: "ISBN or Book Title",
     form_placeholder_isbn: "e.g. 9788024910086 or Tajemství",
@@ -322,6 +326,10 @@ export const translations: Record<Language, Dictionary> = {
       "Zjistěte, jakou hodnotu mají vaše knihy, ještě než je pošlete.",
     main_description:
       "Vytvořte si seznam knih níže. Získáte přehledné cenové rozpětí, rozpis výplat a upozornění na stav zásob.",
+    form_demo_help_title: "Nápověda pro demo (kliknutím rovnou přidej):",
+    form_demo_book_high: "Gazely (Vysoká poptávka)",
+    form_demo_book_over: "Dívka ve vlaku (Přebytek)",
+    form_demo_book_low: "Poslední aristokratka (Pod prahem)",
     form_add_title: "Přidat knihu k ocenění",
     form_label_isbn: "ISBN nebo název knihy",
     form_placeholder_isbn: "např. 9788024910086 nebo Tajemství",
