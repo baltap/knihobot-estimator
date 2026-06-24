@@ -111,7 +111,7 @@ Make it feel trustworthy and founder-demo ready.
   a payout countdown that names the exact date money lands. Directly answers the
   "slow, opaque payout / no notification" complaints.
 
-### S4 — CZ / EN toggle · `IN REVIEW`
+### S4 — CZ / EN toggle · `DONE`
 
 - Language toggle; nods to the 9-market reality. Keep copy in a simple dictionary.
 
