@@ -1283,36 +1283,19 @@ export default function Home() {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
                   <div>
                     <h2 className="text-xs font-semibold uppercase tracking-[0.08em] text-green-700">
-                      {t("shelf_summary_title")}
-                    </h2>
-                    {/* Headline Scope (N2) */}
-                    <p className="mt-1.5 text-sm font-medium text-ink">
                       {language === "cs" ? (
                         <>
-                          Odesíláte{" "}
-                          <strong className="font-bold text-green-700">
-                            {sendBucket.length}
-                          </strong>{" "}
-                          z{" "}
-                          <strong className="font-semibold text-ink">
-                            {shelf.length}
-                          </strong>{" "}
-                          {shelf.length === 1 ? "knihy" : "knih"} na vaší polici
+                          Za {sendBucket.length} z {shelf.length}{" "}
+                          {shelf.length === 1 ? "knihy" : "knih"} ti pošleme
                         </>
                       ) : (
                         <>
-                          Sending{" "}
-                          <strong className="font-bold text-green-700">
-                            {sendBucket.length}
-                          </strong>{" "}
-                          of{" "}
-                          <strong className="font-semibold text-ink">
-                            {shelf.length}
-                          </strong>{" "}
-                          {shelf.length === 1 ? "book" : "books"} on your shelf
+                          For {sendBucket.length} of {shelf.length}{" "}
+                          {shelf.length === 1 ? "book" : "books"} we will send
+                          you
                         </>
                       )}
-                    </p>
+                    </h2>
                     <p className="num mt-3 font-serif text-4xl font-bold tracking-tight text-green-700">
                       {totalPayoutMin}–{totalPayoutMax} {t("currency")}
                     </p>
