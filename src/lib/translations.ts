@@ -319,7 +319,7 @@ export const translations: Record<Language, Dictionary> = {
 
     // Main Landing / Form
     main_title:
-      "Zjistěte, jakou hodnotu mají vaše knihy — ještě než je pošlete.",
+      "Zjistěte, jakou hodnotu mají vaše knihy, ještě než je pošlete.",
     main_description:
       "Vytvořte si seznam knih níže. Získáte přehledné cenové rozpětí, rozpis výplat a upozornění na stav zásob.",
     form_add_title: "Přidat knihu k ocenění",
