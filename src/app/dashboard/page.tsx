@@ -3,8 +3,10 @@
 import React, { useState, useEffect } from "react";
 import Header from "@/components/header";
 import { getShipments, Shipment, ShipmentStatus } from "@/lib/seller-repository";
+import { useLanguage } from "@/components/language-provider";
 
 export default function Dashboard() {
+  const { language, t } = useLanguage();
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedShipments, setExpandedShipments] = useState<Record<string, boolean>>({});
@@ -36,13 +38,13 @@ export default function Dashboard() {
     const diffMs = Date.now() - date.getTime();
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
     
-    if (diffDays <= 0) return "today";
-    if (diffDays === 1) return "yesterday";
-    return `${diffDays} days ago`;
+    if (diffDays <= 0) return t("dashboard_date_today");
+    if (diffDays === 1) return t("dashboard_date_yesterday");
+    return t("dashboard_date_days_ago", { count: diffDays });
   };
 
   const formatCalendarDate = (isoString: string): string => {
-    return new Date(isoString).toLocaleDateString("en-US", {
+    return new Date(isoString).toLocaleDateString(language === "cs" ? "cs-CZ" : "en-US", {
       month: "short",
       day: "numeric",
       year: "numeric",
@@ -63,7 +65,7 @@ export default function Dashboard() {
     const diffMs = payoutDate.getTime() - Date.now();
     const daysRemaining = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
     
-    const dateStr = payoutDate.toLocaleDateString("en-US", {
+    const dateStr = payoutDate.toLocaleDateString(language === "cs" ? "cs-CZ" : "en-US", {
       month: "long",
       day: "numeric",
       year: "numeric",
@@ -105,7 +107,7 @@ export default function Dashboard() {
     <div className="min-h-screen bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-50 font-sans transition-colors duration-200">
       {/* Demo Warning Banner (B1) */}
       <div className="bg-amber-500 text-zinc-950 px-6 py-2 text-center text-xs font-bold shadow-sm tracking-wide">
-        Demo Preview Mode — Tracking data on this screen is simulated for demonstration purposes. No real books have been shipped or sold.
+        {t("dashboard_demo_banner")}
       </div>
 
       <Header />
@@ -114,10 +116,10 @@ export default function Dashboard() {
         {/* Title and Description */}
         <section className="text-center mb-8">
           <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl text-zinc-950 dark:text-white">
-            My Sales Tracker
+            {t("dashboard_title")}
           </h1>
           <p className="mt-3 text-sm sm:text-base text-zinc-600 dark:text-zinc-400 max-w-xl mx-auto">
-            Monitor your book shipments through Knihobot&apos;s receiving, pricing, and listing steps. Payouts for sold items are tracked here.
+            {t("dashboard_description")}
           </p>
         </section>
 
@@ -125,32 +127,32 @@ export default function Dashboard() {
         <section className="grid grid-cols-3 gap-4 mb-8">
           <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/60 dark:backdrop-blur-md text-center">
             <h4 className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-              Paid Out
+              {t("dashboard_paid_out")}
             </h4>
             <p className="mt-1 text-lg sm:text-2xl font-extrabold text-zinc-900 dark:text-white">
-              {loading ? "..." : `${totalPaidOut} CZK`}
+              {loading ? "..." : `${totalPaidOut} ${t("currency")}`}
             </p>
-            <span className="text-[8px] text-zinc-400 block mt-0.5">Sent to bank account</span>
+            <span className="text-[8px] text-zinc-400 block mt-0.5">{t("dashboard_paid_out_sub")}</span>
           </div>
 
           <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/60 dark:backdrop-blur-md text-center">
             <h4 className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-              Pending Payout
+              {t("dashboard_pending")}
             </h4>
             <p className="mt-1 text-lg sm:text-2xl font-extrabold text-brand dark:text-emerald-400">
-              {loading ? "..." : `${totalPendingPayout} CZK`}
+              {loading ? "..." : `${totalPendingPayout} ${t("currency")}`}
             </p>
-            <span className="text-[8px] text-zinc-400 block mt-0.5">Sold, waiting for payout</span>
+            <span className="text-[8px] text-zinc-400 block mt-0.5">{t("dashboard_pending_sub")}</span>
           </div>
 
           <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/60 dark:backdrop-blur-md text-center">
             <h4 className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-              Expected Payout
+              {t("dashboard_expected")}
             </h4>
             <p className="mt-1 text-lg sm:text-2xl font-extrabold text-zinc-900 dark:text-white">
-              {loading ? "..." : `${totalExpectedPayout} CZK`}
+              {loading ? "..." : `${totalExpectedPayout} ${t("currency")}`}
             </p>
-            <span className="text-[8px] text-zinc-400 block mt-0.5">Priced & listed items</span>
+            <span className="text-[8px] text-zinc-400 block mt-0.5">{t("dashboard_expected_sub")}</span>
           </div>
         </section>
 
@@ -159,7 +161,7 @@ export default function Dashboard() {
           {loading ? (
             <div className="flex flex-col items-center justify-center p-12 space-y-3">
               <div className="h-6 w-6 rounded-full border-2 border-brand border-t-transparent animate-spin dark:border-emerald-500" />
-              <p className="text-xs text-zinc-500">Loading tracker dashboard...</p>
+              <p className="text-xs text-zinc-500">{t("dashboard_loading")}</p>
             </div>
           ) : shipments.length === 0 ? (
             <div className="rounded-2xl border-2 border-dashed border-zinc-200 p-12 text-center dark:border-zinc-800">
@@ -176,9 +178,9 @@ export default function Dashboard() {
                   d="M9 12h3.75M9 15h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-.621-.504-1.125-1.125-1.125H9.75M8.25 21h8.25a2.25 2.25 0 002.25-2.25V5.25A2.25 2.25 0 0016.5 3H7.25A2.25 2.25 0 005 5.25v13.5A2.25 2.25 0 007.25 21z"
                 />
               </svg>
-              <h3 className="mt-4 text-sm font-bold text-zinc-900 dark:text-white">No shipments tracked yet</h3>
+              <h3 className="mt-4 text-sm font-bold text-zinc-900 dark:text-white">{t("dashboard_no_shipments_title")}</h3>
               <p className="mt-1 text-xs text-zinc-500">
-                Go back to the Estimator, add books to your shelf, and click &apos;Send to Knihobot&apos; to simulate a shipment.
+                {t("dashboard_no_shipments_desc")}
               </p>
             </div>
           ) : (
@@ -206,17 +208,20 @@ export default function Dashboard() {
                         </span>
                       </div>
                       <p className="text-[10px] text-zinc-400 font-medium">
-                        Sent {formatCalendarDate(shipment.dateSent)} ({formatRelativeDate(shipment.dateSent)})
+                        {t("dashboard_sent_date", {
+                          date: formatCalendarDate(shipment.dateSent),
+                          relative: formatRelativeDate(shipment.dateSent)
+                        })}
                       </p>
                     </div>
 
                     <div className="flex items-center gap-3">
                       <div className="text-right hidden sm:block">
                         <span className="block text-[9px] uppercase tracking-wider font-bold text-zinc-500 dark:text-zinc-400">
-                          Expected Payout
+                          {t("dashboard_expected_payout_title")}
                         </span>
                         <span className="text-xs font-extrabold text-zinc-900 dark:text-white">
-                          {shipment.expectedPayoutMin}–{shipment.expectedPayoutMax} CZK
+                          {shipment.expectedPayoutMin}–{shipment.expectedPayoutMax} {t("currency")}
                         </span>
                       </div>
                       <svg
@@ -260,7 +265,7 @@ export default function Dashboard() {
                                   ? "bg-white border-amber-500 text-amber-500 dark:bg-zinc-900 dark:border-amber-400 dark:text-amber-400 scale-110 shadow-sm"
                                   : "bg-zinc-50 border-zinc-200 text-zinc-400 dark:bg-zinc-900 dark:border-zinc-800 dark:text-zinc-600"
                               }`}
-                              title={step.label}
+                              title={t("step_" + step.status)}
                             >
                               {isCompleted ? (
                                 <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
@@ -279,7 +284,7 @@ export default function Dashboard() {
                                   : "text-zinc-400 dark:text-zinc-500"
                               }`}
                             >
-                              {step.label}
+                              {t("step_" + step.status)}
                             </span>
                           </div>
                         );
@@ -298,7 +303,7 @@ export default function Dashboard() {
                           </svg>
                           <div className="space-y-0.5">
                             <span className="block text-[10px] font-bold text-zinc-900 dark:text-zinc-200">
-                              Payout Countdown (Simulation)
+                              {t("dashboard_payout_countdown_title")}
                             </span>
                             {shipment.items
                               .filter((item) => item.status === "sold" && item.soldAt)
@@ -306,7 +311,11 @@ export default function Dashboard() {
                                 const { dateStr, daysRemaining } = getPayoutCountdown(item.soldAt!);
                                 return (
                                   <p key={index} className="text-[10px] text-zinc-600 dark:text-zinc-400 leading-normal">
-                                    &quot;{item.title}&quot; was sold. Expected Payout on <strong>{dateStr}</strong> ({daysRemaining} days remaining).
+                                    {t("dashboard_payout_countdown_desc", {
+                                      title: item.title,
+                                      date: dateStr,
+                                      count: daysRemaining,
+                                    })}
                                   </p>
                                 );
                               })}
@@ -319,9 +328,9 @@ export default function Dashboard() {
                         <table className="w-full text-left border-collapse text-[10px]">
                           <thead>
                             <tr className="text-zinc-500 font-bold border-b border-zinc-100 dark:border-zinc-800">
-                              <th className="pb-2 w-7/12">Book Info</th>
-                              <th className="pb-2 w-2/12 text-center">Status</th>
-                              <th className="pb-2 w-3/12 text-right">Value Details</th>
+                              <th className="pb-2 w-7/12">{t("dashboard_col_info")}</th>
+                              <th className="pb-2 w-2/12 text-center">{t("dashboard_col_status")}</th>
+                              <th className="pb-2 w-3/12 text-right">{t("dashboard_col_value")}</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
@@ -332,7 +341,7 @@ export default function Dashboard() {
                                     {item.title}
                                   </span>
                                   <span className="block text-[9px] text-zinc-400 mt-0.5">
-                                    by {item.author} · <span className="italic">{item.condition}</span>
+                                    {t("card_by_author")}{item.author} · <span className="italic">{t("form_condition_" + item.condition)}</span>
                                   </span>
                                 </td>
                                 <td className="py-2.5 text-center">
@@ -349,23 +358,23 @@ export default function Dashboard() {
                                         : "bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700/50"
                                     }`}
                                   >
-                                    {item.status}
+                                    {t("step_" + item.status)}
                                   </span>
                                 </td>
                                 <td className="py-2.5 text-right font-medium">
                                   {item.payoutCzk ? (
                                     <div>
                                       <span className="block font-bold text-zinc-900 dark:text-zinc-100">
-                                        {item.payoutCzk} CZK
+                                        {item.payoutCzk} {t("currency")}
                                       </span>
                                       {item.listPriceCzk && (
                                         <span className="block text-[9px] text-zinc-400 mt-0.5">
-                                          Listed at {item.listPriceCzk} CZK
+                                          {t("dashboard_listed_at", { price: item.listPriceCzk })}
                                         </span>
                                       )}
                                     </div>
                                   ) : (
-                                    <span className="text-zinc-400 dark:text-zinc-500">Evaluating...</span>
+                                    <span className="text-zinc-400 dark:text-zinc-500">{t("dashboard_evaluating")}</span>
                                   )}
                                 </td>
                               </tr>

@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Html5Qrcode, Html5QrcodeSupportedFormats, CameraDevice } from "html5-qrcode";
 import { Button } from "@/components/ui/button";
 import { isValidIsbn13 } from "@/lib/isbn-validator";
+import { useLanguage } from "@/components/language-provider";
 
 interface BarcodeScannerProps {
   onScan: (isbn: string) => Promise<{
@@ -33,6 +34,7 @@ export default function BarcodeScanner({
   audioContextRef,
   condition,
 }: BarcodeScannerProps) {
+  const { t } = useLanguage();
   const [scannerState, setScannerState] = useState<ScannerState>("loading");
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [successMessage, setSuccessMessage] = useState<string>("");
@@ -50,18 +52,7 @@ export default function BarcodeScanner({
 
   // Clean condition name helper
   const getConditionLabel = (c: string) => {
-    switch (c) {
-      case "new":
-        return "Like New / Unread";
-      case "verygood":
-        return "Very Good";
-      case "good":
-        return "Good / Standard";
-      case "worn":
-        return "Worn / Damaged";
-      default:
-        return c;
-    }
+    return t("form_condition_" + c);
   };
 
   // Synthesize positive success chime (using AudioContext created on click gesture) (N2, N3)
@@ -138,7 +129,7 @@ export default function BarcodeScanner({
         console.warn("Pause error:", e);
       }
       setScannerState("warning");
-      setErrorMessage("Not a book barcode (must be EAN-13 starting 978/979)");
+      setErrorMessage(t("scanner_err_not_book"));
       
       // Auto-resume after 2.5s
       if (resumeTimeoutRef.current) clearTimeout(resumeTimeoutRef.current);
@@ -168,20 +159,27 @@ export default function BarcodeScanner({
         playSuccessChime();
         setScannerState("success");
         if (result.isNoComparables) {
-          setSuccessMessage(`Added: ISBN ${normalized} (no comparables, see shelf)`);
+          setSuccessMessage(t("scanner_added_no_comparables", { isbn: normalized }));
         } else if (result.payoutMax === 0) {
-          setSuccessMessage(`Added: ${result.title || "Book"} (below earning threshold)`);
+          setSuccessMessage(t("scanner_added_below_threshold", { title: result.title || t("scanner_default_book_title") }));
         } else {
-          setSuccessMessage(`Added: ${result.title || "Book"} (${result.payoutMin}–${result.payoutMax} CZK)`);
+          setSuccessMessage(
+            t("scanner_added_success", {
+              title: result.title || t("scanner_default_book_title"),
+              payoutMin: result.payoutMin ?? 0,
+              payoutMax: result.payoutMax ?? 0,
+              currency: t("currency"),
+            })
+          );
         }
       } else {
         setScannerState("warning");
-        setErrorMessage(result.error || "Lookup failed.");
+        setErrorMessage(result.error ? t(result.error) : t("scanner_err_lookup_failed"));
       }
     } catch (err) {
       if (activeMountIdRef.current !== myMountId) return;
       setScannerState("warning");
-      setErrorMessage("System error during lookup.");
+      setErrorMessage(t("scanner_err_system_error"));
       console.error(err);
     }
 
@@ -240,13 +238,9 @@ export default function BarcodeScanner({
 
       setScannerState("error");
       if (isPermissionErr) {
-        setErrorMessage(
-          "Camera permission was denied. Please update your browser settings to allow camera access or use manual input."
-        );
+        setErrorMessage(t("scanner_camera_permission_denied_desc"));
       } else {
-        setErrorMessage(
-          "Failed to start camera. Make sure no other apps are using it, or use manual input."
-        );
+        setErrorMessage(t("scanner_generic_error_desc"));
       }
     }
   };
@@ -290,9 +284,7 @@ export default function BarcodeScanner({
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         if (activeMountIdRef.current !== myMountId) return;
         setScannerState("error");
-        setErrorMessage(
-          "Camera access is unsupported on this browser. Please use the manual input to enter the ISBN."
-        );
+        setErrorMessage(t("scanner_unsupported"));
         return;
       }
 
@@ -304,9 +296,7 @@ export default function BarcodeScanner({
 
         if (devices.length === 0) {
           setScannerState("error");
-          setErrorMessage(
-            "No camera detected on this device. Please use manual input to enter the ISBN."
-          );
+          setErrorMessage(t("scanner_no_camera"));
           return;
         }
 
@@ -406,16 +396,16 @@ export default function BarcodeScanner({
         <div className="px-5 py-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-900/90 sticky top-0 z-30">
           <div>
             <h3 id="scanner-dialog-title" className="font-bold text-sm text-zinc-100">
-              Barcode Scanner (ISBN)
+              {t("scanner_dialog_title")}
             </h3>
             <p className="text-[10px] text-zinc-400 font-medium mt-0.5">
-              Condition: {getConditionLabel(condition)}
+              {t("form_label_condition")}: {getConditionLabel(condition)}
             </p>
           </div>
           <button
             ref={closeButtonRef}
             onClick={onClose}
-            aria-label="Close scanner"
+            aria-label={t("scanner_aria_close")}
             className="text-zinc-400 hover:text-white p-1 rounded-md transition-colors cursor-pointer"
           >
             <svg
@@ -485,7 +475,7 @@ export default function BarcodeScanner({
                 />
               </svg>
               <p className="text-xs text-zinc-300 font-semibold">
-                Initializing camera feed...
+                {t("scanner_loading")}
               </p>
             </div>
           )}
@@ -513,7 +503,7 @@ export default function BarcodeScanner({
                 />
               </svg>
               <p className="text-xs text-zinc-300 font-semibold">
-                Fetching book estimation...
+                {t("scanner_fetching")}
               </p>
             </div>
           )}
@@ -579,7 +569,7 @@ export default function BarcodeScanner({
                 />
               </svg>
               <h4 className="font-bold text-sm text-zinc-100 mb-2">
-                Scanner Unavailable
+                {t("scanner_unavailable")}
               </h4>
               <p className="text-xs text-zinc-400 max-w-xs leading-normal mb-5">
                 {errorMessage}
@@ -590,7 +580,7 @@ export default function BarcodeScanner({
                 onClick={onClose}
                 className="bg-brand hover:bg-brand/95 text-xs text-white px-4 py-2 font-bold cursor-pointer"
               >
-                Use Manual Input
+                {t("scanner_btn_manual_input")}
               </Button>
             </div>
           )}
@@ -601,9 +591,9 @@ export default function BarcodeScanner({
           <div className="px-5 py-4 bg-zinc-900 border-t border-zinc-800 flex flex-col sm:flex-row items-center gap-3 justify-between">
             <div className="text-[10px] text-zinc-400 font-medium">
               {cameras.length > 1 ? (
-                <span>Found {cameras.length} cameras</span>
+                <span>{t("scanner_found_cameras", { count: cameras.length })}</span>
               ) : (
-                <span>Active camera running</span>
+                <span>{t("scanner_active_camera")}</span>
               )}
             </div>
 
@@ -615,7 +605,7 @@ export default function BarcodeScanner({
                   onClick={handleSwitchCamera}
                   className="w-full sm:w-auto border-zinc-700 text-zinc-300 hover:bg-zinc-800 text-xs py-1.5 h-8 font-semibold cursor-pointer"
                 >
-                  Switch Camera
+                  {t("scanner_btn_switch_camera")}
                 </Button>
               )}
               <Button
@@ -624,7 +614,7 @@ export default function BarcodeScanner({
                 onClick={onClose}
                 className="w-full sm:w-auto bg-brand hover:bg-brand/95 text-xs py-1.5 h-8 font-bold cursor-pointer"
               >
-                Done
+                {t("scanner_btn_done")}
               </Button>
             </div>
           </div>

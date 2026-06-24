@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { analyzeSpinePhoto, SpineMatchResult } from "@/app/actions";
+import { useLanguage } from "@/components/language-provider";
 
 interface SpineScannerProps {
   onAddBooks: (books: { title: string; author: string }[]) => Promise<void>;
@@ -13,6 +14,7 @@ interface SpineScannerProps {
 type Step = "upload" | "preview" | "analyzing" | "review" | "error";
 
 export default function SpineScanner({ onAddBooks, onClose, condition }: SpineScannerProps) {
+  const { t } = useLanguage();
   const [step, setStep] = useState<Step>("upload");
   const [selectedImage, setSelectedImage] = useState<string | null>(null); // base64 JPEG data URL
   const [isAdding, setIsAdding] = useState(false);
@@ -122,17 +124,14 @@ export default function SpineScanner({ onAddBooks, onClose, condition }: SpineSc
       } else {
         setStep("error");
         setErrorMessage(
-          response.error ||
-            "We couldn't recognize any book spines in this photo. Please try again with a clearer, well-lit picture."
+          response.error ? t(response.error) : t("GENERIC_ERROR")
         );
       }
     } catch (err) {
       if (!activeRef.current) return;
       console.error("Spine scanner analysis error:", err);
       setStep("error");
-      setErrorMessage(
-        "A system error occurred. Please verify your connection or API configuration and try again."
-      );
+      setErrorMessage(t("GENERIC_ERROR"));
     }
   };
 
@@ -204,13 +203,13 @@ export default function SpineScanner({ onAddBooks, onClose, condition }: SpineSc
         <div className="px-5 py-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-900/90 sticky top-0 z-30">
           <div>
             <h3 id="spine-dialog-title" className="font-bold text-sm text-zinc-100 flex items-center gap-1.5">
-              <span>AI Spine Scanner</span>
+              <span>{t("spine_dialog_title")}</span>
               <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-bold text-emerald-400 border border-emerald-500/20">
                 AI Beta
               </span>
             </h3>
             <p className="text-[10px] text-zinc-400 font-medium mt-0.5">
-              Upload a spine photo to auto-detect multiple titles
+              {t("spine_dialog_desc")}
             </p>
           </div>
           <button
@@ -275,10 +274,10 @@ export default function SpineScanner({ onAddBooks, onClose, condition }: SpineSc
                   </svg>
                 </div>
                 <h4 className="font-bold text-xs text-zinc-200 uppercase tracking-wider">
-                  Snap or Upload Spine Photo
+                  {t("spine_step_upload_title")}
                 </h4>
                 <p className="text-[10px] text-zinc-500 max-w-[200px] mt-2 leading-normal">
-                  Place a stack of books with their spines facing the camera to extract metadata.
+                  {t("spine_step_upload_desc")}
                 </p>
               </div>
             </div>
@@ -301,13 +300,13 @@ export default function SpineScanner({ onAddBooks, onClose, condition }: SpineSc
                   onClick={handleReset}
                   className="flex-1 border-zinc-800 text-zinc-300 hover:bg-zinc-800 text-xs font-semibold cursor-pointer h-9"
                 >
-                  Retake Photo
+                  {t("spine_btn_retake")}
                 </Button>
                 <Button
                   onClick={handleAnalyze}
                   className="flex-1 bg-brand hover:bg-brand/95 text-xs text-white font-bold cursor-pointer h-9"
                 >
-                  Analyze Spines
+                  {t("spine_btn_analyze")}
                 </Button>
               </div>
             </div>
@@ -327,10 +326,10 @@ export default function SpineScanner({ onAddBooks, onClose, condition }: SpineSc
               </div>
               <div className="space-y-1">
                 <p className="text-xs text-zinc-200 font-bold animate-pulse">
-                  AI analysis in progress...
+                  {t("spine_analyzing_title")}
                 </p>
                 <p className="text-[10px] text-zinc-500 font-medium">
-                  Recognizing spines and matching catalog values
+                  {t("spine_analyzing_desc")}
                 </p>
               </div>
             </div>
@@ -340,7 +339,7 @@ export default function SpineScanner({ onAddBooks, onClose, condition }: SpineSc
           {step === "review" && (
             <div className="p-4 space-y-4">
               <div className="p-3 bg-zinc-950/40 border border-zinc-800/80 rounded-lg text-[10px] text-zinc-400 leading-normal">
-                <strong>Review Extracted Spines:</strong> Confirm the matched catalog books below. Checked titles will be added to your Estimate Shelf. Unmatched books will be added as reference unpriced items.
+                <strong>{t("spine_review_title")}</strong> {t("spine_review_desc")}
               </div>
 
               <div className="border border-zinc-800 rounded-lg overflow-hidden max-h-[300px] overflow-y-auto">
@@ -348,15 +347,15 @@ export default function SpineScanner({ onAddBooks, onClose, condition }: SpineSc
                   <thead className="bg-zinc-950 text-zinc-400 font-bold border-b border-zinc-800 sticky top-0">
                     <tr>
                       <th className="p-2.5 w-8"></th>
-                      <th className="p-2.5">Extracted Spine</th>
-                      <th className="p-2.5">Catalog Match</th>
+                      <th className="p-2.5">{t("spine_col_extracted")}</th>
+                      <th className="p-2.5">{t("spine_col_match")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-800 bg-zinc-900/10">
                     {results.length === 0 ? (
                       <tr>
                         <td colSpan={3} className="p-6 text-center italic text-zinc-500">
-                          No text was recognized from this image.
+                          {t("spine_no_text_recognized")}
                         </td>
                       </tr>
                     ) : (
@@ -379,7 +378,7 @@ export default function SpineScanner({ onAddBooks, onClose, condition }: SpineSc
                               {item.extractedTitle}
                             </span>
                             <span className="block text-[9px] text-zinc-500 mt-0.5">
-                              by {item.extractedAuthor || "Unknown"}
+                              {t("card_by_author")}{item.extractedAuthor || t("spine_unknown_author")}
                             </span>
                           </td>
                           <td className="p-2.5">
@@ -387,14 +386,14 @@ export default function SpineScanner({ onAddBooks, onClose, condition }: SpineSc
                               <div>
                                 <span className="block font-bold text-emerald-400 leading-tight">
                                   {item.matchDetails.estimation.payoutMin.payout}–
-                                  {item.matchDetails.estimation.payoutMax.payout} CZK
+                                  {item.matchDetails.estimation.payoutMax.payout} {t("currency")}
                                 </span>
                                 <span className="block text-[9px] text-zinc-400 mt-0.5 truncate max-w-[140px]" title={item.matchDetails.title}>
                                   {item.matchDetails.title}
                                 </span>
                               </div>
                             ) : (
-                              <div className="flex items-center gap-1 text-amber-500/90 font-semibold">
+                              <div className="flex items-center gap-1 text-amber-500/90 font-semibold" title={t("spine_unmatched_desc")}>
                                 <svg
                                   className="h-3.5 w-3.5 text-amber-500"
                                   fill="none"
@@ -408,7 +407,7 @@ export default function SpineScanner({ onAddBooks, onClose, condition }: SpineSc
                                     d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
                                   />
                                 </svg>
-                                <span>unmatched</span>
+                                <span>{t("spine_unmatched_label")}</span>
                               </div>
                             )}
                           </td>
@@ -426,14 +425,14 @@ export default function SpineScanner({ onAddBooks, onClose, condition }: SpineSc
                     onClick={handleReset}
                     className="flex-1 border-zinc-800 text-zinc-300 hover:bg-zinc-800 text-xs font-semibold cursor-pointer h-9"
                   >
-                    Discard
+                    {t("spine_btn_discard")}
                   </Button>
                   <Button
                     onClick={handleBatchAdd}
                     disabled={isAdding || results.filter((_, idx) => checkedBooks[idx]).length === 0}
                     className="flex-1 bg-brand hover:bg-brand/95 text-xs text-white font-bold cursor-pointer h-9"
                   >
-                    {isAdding ? "Adding..." : `Add ${results.filter((_, idx) => checkedBooks[idx]).length} Books`}
+                    {isAdding ? t("spine_adding_books") : t("spine_btn_add_books", { count: results.filter((_, idx) => checkedBooks[idx]).length })}
                   </Button>
                 </div>
               )}
@@ -457,7 +456,7 @@ export default function SpineScanner({ onAddBooks, onClose, condition }: SpineSc
                 />
               </svg>
               <h4 className="font-bold text-sm text-zinc-100 mb-2">
-                Spine Analysis Failed
+                {t("spine_error_title")}
               </h4>
               <p className="text-xs text-zinc-400 max-w-xs leading-normal mb-6">
                 {errorMessage}
@@ -468,13 +467,13 @@ export default function SpineScanner({ onAddBooks, onClose, condition }: SpineSc
                   onClick={handleReset}
                   className="flex-1 border-zinc-800 text-zinc-300 hover:bg-zinc-800 text-xs font-semibold cursor-pointer h-9"
                 >
-                  Try Another Photo
+                  {t("spine_btn_try_another")}
                 </Button>
                 <Button
                   onClick={onClose}
                   className="flex-1 bg-brand hover:bg-brand/95 text-xs text-white font-bold cursor-pointer h-9"
                 >
-                  Use Manual Input
+                  {t("scanner_btn_manual_input")}
                 </Button>
               </div>
             </div>

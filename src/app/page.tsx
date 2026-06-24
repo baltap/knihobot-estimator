@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { trackEvent } from "@/lib/analytics";
 import Header from "@/components/header";
 import { addShipment } from "@/lib/seller-repository";
+import { useLanguage } from "@/components/language-provider";
 
 const BarcodeScanner = dynamic(
   () => import("@/components/barcode-scanner"),
@@ -37,6 +38,8 @@ interface ShelfItem {
 }
 
 export default function Home() {
+  const { t, language } = useLanguage();
+
   // Barcode scanner states
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -138,7 +141,7 @@ export default function Home() {
     e.preventDefault();
     const queryStr = searchQuery.trim();
     if (!queryStr) {
-      setFormError("Please enter a title or ISBN to estimate.");
+      setFormError(t("form_error_empty"));
       return;
     }
     setFormError(null);
@@ -149,7 +152,7 @@ export default function Home() {
         setSearchQuery("");
         setAuthorQuery("");
       } catch (err) {
-        setFormError("Failed to fetch estimate. Please try again.");
+        setFormError(t("form_error_fetch_failed"));
         console.error(err);
       }
     });
@@ -181,7 +184,7 @@ export default function Home() {
       console.error("Barcode scan lookup error:", err);
       return {
         success: false,
-        error: "Lookup failed. This ISBN could not be estimated.",
+        error: t("form_error_fetch_failed"),
       };
     }
   };
@@ -425,7 +428,7 @@ export default function Home() {
       <div className="mt-4 p-3 rounded-lg border border-amber-200/50 bg-amber-50/10 dark:border-amber-900/30 dark:bg-amber-950/10 text-xs">
         <fieldset className="space-y-2">
           <legend className="block text-[10px] font-bold uppercase tracking-wider text-amber-800 dark:text-amber-400 mb-1">
-            Below earning threshold — how would you like to handle this book?
+            {t("agency_threshold_legend")}
           </legend>
           <div className="space-y-1">
             <label className="flex items-start gap-2.5 cursor-pointer py-1 rounded hover:bg-zinc-100/50 dark:hover:bg-zinc-800/30">
@@ -439,9 +442,9 @@ export default function Home() {
               />
               <span>
                 <strong className="font-bold text-zinc-800 dark:text-zinc-200">
-                  Keep this book
-                </strong>{" "}
-                — Better off kept on your shelf or gifted to a friend.
+                  {t("agency_choice_keep_label")}
+                </strong>
+                {t("agency_choice_keep_desc")}
               </span>
             </label>
             <label className="flex items-start gap-2.5 cursor-pointer py-1 rounded hover:bg-zinc-100/50 dark:hover:bg-zinc-800/30">
@@ -455,9 +458,9 @@ export default function Home() {
               />
               <span>
                 <strong className="font-bold text-zinc-800 dark:text-zinc-200">
-                  Donate or rehome locally
-                </strong>{" "}
-                — Do not send; donate or recycle it yourself.
+                  {t("agency_choice_donate_label")}
+                </strong>
+                {t("agency_choice_donate_desc")}
               </span>
             </label>
             <label className="flex items-start gap-2.5 cursor-pointer py-1 rounded hover:bg-zinc-100/50 dark:hover:bg-zinc-800/30">
@@ -471,10 +474,9 @@ export default function Home() {
               />
               <span>
                 <strong className="font-bold text-zinc-800 dark:text-zinc-200">
-                  Send anyway
-                </strong>{" "}
-                — Send to Knihobot. If list prices increase, you may still earn;
-                otherwise, it will be handled as a donation.
+                  {t("agency_choice_send_label")}
+                </strong>
+                {t("agency_choice_send_desc")}
               </span>
             </label>
           </div>
@@ -505,8 +507,8 @@ export default function Home() {
       >
         <span>
           {isOversupplied
-            ? "High supply. Do you want to keep this copy locally instead?"
-            : "Do you want to keep this copy locally?"}
+            ? t("agency_oversupply_keep_prompt")
+            : t("agency_normal_keep_prompt")}
         </span>
         <label className="flex items-center gap-1.5 cursor-pointer">
           <input
@@ -525,7 +527,7 @@ export default function Home() {
             className="h-3.5 w-3.5 border-zinc-300 text-brand focus:ring-brand rounded cursor-pointer"
           />
           <span className="font-bold uppercase tracking-wider text-[10px]">
-            Keep Book
+            {t("agency_keep_checkbox_label")}
           </span>
         </label>
       </div>
@@ -542,11 +544,10 @@ export default function Home() {
         {/* Value Prop Hero Section */}
         <section className="text-center mb-8">
           <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl text-zinc-950 dark:text-white">
-            Find out what your books are worth — before you send them.
+            {t("main_title")}
           </h1>
           <p className="mt-3 text-sm sm:text-base text-zinc-600 dark:text-zinc-400 max-w-xl mx-auto">
-            Build your shelf list below. Get transparent price ranges, itemized
-            payout calculations, and stock warnings.
+            {t("main_description")}
           </p>
         </section>
 
@@ -554,7 +555,7 @@ export default function Home() {
         <section className="rounded-2xl border border-zinc-200/80 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/60 dark:backdrop-blur-md mb-8">
           <form onSubmit={handleAddBook} className="space-y-4">
             <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-300">
-              Add Book to Estimate Shelf
+              {t("form_add_title")}
             </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -563,7 +564,7 @@ export default function Home() {
                   htmlFor="search-query"
                   className="block text-[10px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1"
                 >
-                  ISBN or Book Title
+                  {t("form_label_isbn")}
                 </label>
                 <div className="flex gap-2">
                   <input
@@ -571,7 +572,7 @@ export default function Home() {
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="e.g. 9788024910086 or Tajemství"
+                    placeholder={t("form_placeholder_isbn")}
                     className="flex-1 rounded-lg border border-zinc-200 bg-zinc-50/50 px-3 py-2 text-sm placeholder-zinc-400 outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white dark:focus:border-emerald-500 dark:focus:ring-emerald-500/20 transition-all font-medium"
                     aria-required="true"
                   />
@@ -580,7 +581,7 @@ export default function Home() {
                     onClick={handleOpenScanner}
                     variant="outline"
                     className="px-3 border-zinc-200 text-zinc-700 hover:bg-zinc-100 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-800 shrink-0 h-[38px] cursor-pointer"
-                    title="Scan book barcode with camera"
+                    title={t("form_btn_scan_barcode")}
                   >
                     <svg
                       className="h-5 w-5 text-brand dark:text-emerald-500"
@@ -610,7 +611,7 @@ export default function Home() {
                     }}
                     variant="outline"
                     className="px-3 border-zinc-200 text-zinc-700 hover:bg-zinc-100 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-800 shrink-0 h-[38px] cursor-pointer flex items-center gap-1.5"
-                    title="Scan book spines with AI vision (AI Beta)"
+                    title={t("form_btn_scan_spine")}
                   >
                     <svg
                       className="h-5 w-5 text-brand dark:text-emerald-500"
@@ -639,20 +640,20 @@ export default function Home() {
                     htmlFor="author-query"
                     className="block text-[10px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1"
                   >
-                    Author (Optional)
+                    {t("form_label_author")}
                   </label>
                   <input
                     id="author-query"
                     type="text"
                     value={authorQuery}
                     onChange={(e) => setAuthorQuery(e.target.value)}
-                    placeholder="e.g. Rhonda Byrne"
+                    placeholder={t("form_placeholder_author")}
                     className="w-full rounded-lg border border-zinc-200 bg-zinc-50/50 px-3 py-2 text-sm placeholder-zinc-400 outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white dark:focus:border-emerald-500 dark:focus:ring-emerald-500/20 transition-all font-medium"
                   />
                 </div>
               ) : (
                 <div className="flex items-end text-xs text-zinc-600 dark:text-zinc-400 pb-3 font-medium">
-                  ISBN detected. Title lookup bypassed.
+                  {t("form_isbn_detected")}
                 </div>
               )}
             </div>
@@ -664,7 +665,7 @@ export default function Home() {
                   htmlFor="form-condition"
                   className="block text-[10px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1"
                 >
-                  Condition
+                  {t("form_label_condition")}
                 </label>
                 <select
                   id="form-condition"
@@ -676,10 +677,10 @@ export default function Home() {
                   }
                   className="w-full h-[38px] rounded-lg border border-zinc-200 bg-zinc-50/50 px-2 py-1 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white dark:focus:border-emerald-500 dark:focus:ring-emerald-500/20 transition-all font-medium text-zinc-800 dark:text-zinc-200"
                 >
-                  <option value="new">Like New / Unread (1.2×)</option>
-                  <option value="verygood">Very Good (1.1×)</option>
-                  <option value="good">Good / Standard (1.0×)</option>
-                  <option value="worn">Worn / Damaged (0.7×)</option>
+                  <option value="new">{t("form_condition_new_option")}</option>
+                  <option value="verygood">{t("form_condition_verygood_option")}</option>
+                  <option value="good">{t("form_condition_good_option")}</option>
+                  <option value="worn">{t("form_condition_worn_option")}</option>
                 </select>
               </div>
 
@@ -712,10 +713,10 @@ export default function Home() {
                           d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                         />
                       </svg>
-                      Adding to Shelf...
+                      {t("form_btn_adding")}
                     </span>
                   ) : (
-                    "Add to Estimate Shelf"
+                    t("form_btn_add")
                   )}
                 </Button>
               </div>
@@ -751,10 +752,10 @@ export default function Home() {
                 />
               </svg>
               <h3 className="font-bold text-sm text-zinc-700 dark:text-zinc-300">
-                Your shelf is empty
+                {t("shelf_empty")}
               </h3>
               <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-1 max-w-xs mx-auto">
-                Search and add books above to estimate your shipment value.
+                {t("shelf_empty_desc")}
               </p>
             </div>
           ) : (
@@ -766,25 +767,43 @@ export default function Home() {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
                     <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
-                      Shipment Estimate Summary
+                      {t("shelf_summary_title")}
                     </h2>
                     {/* Headline Scope (N2) */}
                     <p className="text-sm font-semibold mt-1 text-zinc-700 dark:text-zinc-300">
-                      Sending{" "}
-                      <strong className="text-brand dark:text-emerald-400 font-bold">
-                        {sendBucket.length}
-                      </strong>{" "}
-                      of{" "}
-                      <strong className="font-semibold text-zinc-950 dark:text-white">
-                        {shelf.length}
-                      </strong>{" "}
-                      {shelf.length === 1 ? "book" : "books"} on your shelf
+                      {language === "cs" ? (
+                        <>
+                          Odesíláte{" "}
+                          <strong className="text-brand dark:text-emerald-400 font-bold">
+                            {sendBucket.length}
+                          </strong>{" "}
+                          z{" "}
+                          <strong className="font-semibold text-zinc-950 dark:text-white">
+                            {shelf.length}
+                          </strong>{" "}
+                          {shelf.length === 1 ? "knihy" : "knih"}{" "}
+                          na vaší polici
+                        </>
+                      ) : (
+                        <>
+                          Sending{" "}
+                          <strong className="text-brand dark:text-emerald-400 font-bold">
+                            {sendBucket.length}
+                          </strong>{" "}
+                          of{" "}
+                          <strong className="font-semibold text-zinc-950 dark:text-white">
+                            {shelf.length}
+                          </strong>{" "}
+                          {shelf.length === 1 ? "book" : "books"}{" "}
+                          on your shelf
+                        </>
+                      )}
                     </p>
                     <p className="mt-3 text-3xl font-extrabold tracking-tight text-zinc-900 dark:text-white">
-                      {totalPayoutMin}–{totalPayoutMax} CZK
+                      {totalPayoutMin}–{totalPayoutMax} {t("currency")}
                     </p>
                     <p className="text-[10px] text-zinc-600 dark:text-zinc-400 mt-1">
-                      Estimated payout sum of the shipment bucket.
+                      {t("shelf_total_range_desc")}
                     </p>
                   </div>
 
@@ -794,12 +813,11 @@ export default function Home() {
                       onClick={() => setIsCheckoutModalOpen(true)}
                       className="inline-flex h-9 items-center justify-center rounded-lg bg-brand px-4 text-xs font-bold text-brand-foreground hover:bg-brand/95 transition-all text-center focus-visible:ring-2 focus-visible:ring-brand/50 dark:bg-emerald-700 dark:hover:bg-emerald-600 cursor-pointer"
                     >
-                      Send {sendBucket.length}{" "}
-                      {sendBucket.length === 1 ? "book" : "books"} to Knihobot
+                      {t("shelf_btn_send", { count: sendBucket.length })}
                     </Button>
                     {keepDonateBucket.length > 0 && (
                       <div className="text-center text-[10px] text-zinc-600 dark:text-zinc-400 font-medium">
-                        {keepDonateBucket.length} kept/donated locally
+                        {t("shelf_kept_locally", { count: keepDonateBucket.length })}
                       </div>
                     )}
                   </div>
@@ -812,18 +830,16 @@ export default function Home() {
               <div>
                 <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-3 px-1 flex items-center justify-between">
                   <span>
-                    Shipment List ({sendBucket.length}{" "}
-                    {sendBucket.length === 1 ? "book" : "books"})
+                    {t("shelf_shipment_list_title", { count: sendBucket.length })}
                   </span>
                   <span className="text-[10px] lowercase font-normal">
-                    Included in payout
+                    {t("shelf_shipment_list_desc")}
                   </span>
                 </h3>
 
                 {sendBucket.length === 0 ? (
-                  <div className="rounded-xl border border-zinc-200 border-dashed p-6 text-center text-xs text-zinc-600 dark:border-zinc-400 dark:border-zinc-800">
-                    No books in shipment list. Adjust agency choices below to
-                    include them.
+                  <div className="rounded-xl border border-zinc-200 border-dashed p-6 text-center text-xs text-zinc-600 dark:border-zinc-800 dark:border-zinc-800">
+                    {t("shelf_shipment_empty")}
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -862,7 +878,7 @@ export default function Home() {
                               {item.comparables[0]?.title || item.query.title}
                             </h4>
                             <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5">
-                              by{" "}
+                              {t("card_by_author")}
                               {item.comparables[0]?.author ||
                                 item.query.author ||
                                 "Unknown"}
@@ -873,21 +889,21 @@ export default function Home() {
                             {/* Stock warning badge remains visible on shelf item (N1) */}
                             {item.estimation.demandStatus === "high" && (
                               <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
-                                low stock ({item.estimation.activeCopies})
+                                {t("demand_badge_low_stock", { count: item.estimation.activeCopies })}
                               </span>
                             )}
                             {item.estimation.demandStatus === "moderate" && (
                               <span className="inline-flex items-center rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-semibold text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-                                supply: {item.estimation.activeCopies}
+                                {t("demand_badge_supply", { count: item.estimation.activeCopies })}
                               </span>
                             )}
                             {item.estimation.demandStatus ===
                               "oversupplied" && (
                               <span
                                 className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800 dark:bg-amber-950/50 dark:text-amber-400"
-                                title="Knihobot already has many active copies. May be declined or donated."
+                                title={t("demand_badge_oversupplied_title")}
                               >
-                                oversupplied ({item.estimation.activeCopies}) ⚠️
+                                {t("demand_badge_oversupplied", { count: item.estimation.activeCopies })}
                               </span>
                             )}
 
@@ -922,7 +938,7 @@ export default function Home() {
                               htmlFor={`condition-${item.id}`}
                               className="text-zinc-600 dark:text-zinc-400 font-semibold"
                             >
-                              Condition:
+                              {t("form_label_condition")}:
                             </label>
                             <select
                               id={`condition-${item.id}`}
@@ -939,38 +955,34 @@ export default function Home() {
                               }
                               className="rounded border border-zinc-200 bg-zinc-50/50 px-1.5 py-0.5 text-xs outline-none dark:border-zinc-800 dark:bg-zinc-900 font-medium text-zinc-800 dark:text-zinc-200"
                             >
-                              <option value="new">Like New (1.2x)</option>
-                              <option value="verygood">Very Good (1.1x)</option>
-                              <option value="good">Good (1.0x)</option>
-                              <option value="worn">Worn (0.7x)</option>
+                              <option value="new">{t("card_condition_new_option")}</option>
+                              <option value="verygood">{t("card_condition_verygood_option")}</option>
+                              <option value="good">{t("card_condition_good_option")}</option>
+                              <option value="worn">{t("card_condition_worn_option")}</option>
                             </select>
                           </div>
 
                           <div className="flex flex-col text-right justify-end sm:items-end">
                             <div className="flex justify-between sm:justify-end gap-1.5">
                               <span className="text-zinc-600 dark:text-zinc-400">
-                                Retail:{" "}
+                                {t("card_retail_label")}{" "}
                               </span>
                               <strong className="font-semibold text-zinc-950 dark:text-white">
                                 {item.estimation.priceMin}–
-                                {item.estimation.priceMax} CZK
+                                {item.estimation.priceMax} {t("currency")}
                               </strong>
                             </div>
                             {/* Pluralize correctly (N4) */}
                             <span className="block text-[10px] text-zinc-600 dark:text-zinc-400">
-                              based on {item.estimation.comparableCount}{" "}
-                              comparable{" "}
-                              {item.estimation.comparableCount === 1
-                                ? "copy"
-                                : "copies"}
+                              {t("card_based_on_comparables", { count: item.estimation.comparableCount })}
                             </span>
                             <div className="flex justify-between sm:justify-end gap-1.5 mt-1 sm:mt-0">
                               <span className="text-zinc-600 dark:text-zinc-400">
-                                Payout:{" "}
+                                {t("card_payout_label")}{" "}
                               </span>
                               <strong className="font-bold text-brand dark:text-emerald-400">
                                 {item.estimation.payoutMin.payout}–
-                                {item.estimation.payoutMax.payout} CZK
+                                {item.estimation.payoutMax.payout} {t("currency")}
                               </strong>
                             </div>
                           </div>
@@ -1004,20 +1016,15 @@ export default function Home() {
                 <div className="pt-4 border-t border-zinc-200 dark:border-zinc-800">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-3 px-1 flex items-center justify-between">
                     <span>
-                      Better Kept or Donated ({keepDonateBucket.length}{" "}
-                      {keepDonateBucket.length === 1 ? "book" : "books"})
+                      {t("shelf_keep_donate_title_detailed", { count: keepDonateBucket.length })}
                     </span>
                     <span className="text-[10px] lowercase font-normal">
-                      Excluded from shipment
+                      {t("shelf_keep_donate_desc_detailed")}
                     </span>
                   </h3>
 
                   <div className="p-4 rounded-xl bg-zinc-100/40 border border-zinc-200/50 dark:bg-zinc-900/10 dark:border-zinc-800/80 mb-4 text-xs text-zinc-600 dark:text-zinc-400 leading-normal">
-                    <strong>Why these are excluded:</strong> These books are
-                    estimated below the earning threshold (resulting in a 0 CZK
-                    payout), or have a high oversupply warning and you decided
-                    to keep them locally to avoid potential decline or donation
-                    fees.
+                    <span dangerouslySetInnerHTML={{ __html: t("shelf_keep_donate_why_excluded_html") }} />
                   </div>
 
                   <div className="space-y-4">
@@ -1056,7 +1063,7 @@ export default function Home() {
                               {item.comparables[0]?.title || item.query.title}
                             </h4>
                             <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5">
-                              by{" "}
+                              {t("card_by_author")}
                               {item.comparables[0]?.author ||
                                 item.query.author ||
                                 "Unknown"}
@@ -1069,20 +1076,19 @@ export default function Home() {
                               <>
                                 {item.estimation.demandStatus === "high" && (
                                   <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
-                                    low stock ({item.estimation.activeCopies})
+                                    {t("demand_badge_low_stock", { count: item.estimation.activeCopies })}
                                   </span>
                                 )}
                                 {item.estimation.demandStatus ===
                                   "moderate" && (
-                                  <span className="inline-flex items-center rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-semibold text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-                                    supply: {item.estimation.activeCopies}
+                                  <span className="inline-flex items-center rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-semibold text-zinc-700 dark:bg-zinc-800/30 dark:text-zinc-300">
+                                    {t("demand_badge_supply", { count: item.estimation.activeCopies })}
                                   </span>
                                 )}
                                 {item.estimation.demandStatus ===
                                   "oversupplied" && (
                                   <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800 dark:bg-amber-950/50 dark:text-amber-400">
-                                    oversupplied ({item.estimation.activeCopies}
-                                    ) ⚠️
+                                    {t("demand_badge_oversupplied", { count: item.estimation.activeCopies })}
                                   </span>
                                 )}
                               </>
@@ -1119,7 +1125,7 @@ export default function Home() {
                               htmlFor={`condition-${item.id}`}
                               className="text-zinc-600 dark:text-zinc-400 font-semibold"
                             >
-                              Condition:
+                              {t("form_label_condition")}:
                             </label>
                             <select
                               id={`condition-${item.id}`}
@@ -1136,10 +1142,10 @@ export default function Home() {
                               }
                               className="rounded border border-zinc-200 bg-zinc-50/50 px-1.5 py-0.5 text-xs outline-none dark:border-zinc-800 dark:bg-zinc-950 font-medium text-zinc-800 dark:text-zinc-200"
                             >
-                              <option value="new">Like New (1.2×)</option>
-                              <option value="verygood">Very Good (1.1×)</option>
-                              <option value="good">Good (1.0×)</option>
-                              <option value="worn">Worn (0.7×)</option>
+                              <option value="new">{t("card_condition_new_option")}</option>
+                              <option value="verygood">{t("card_condition_verygood_option")}</option>
+                              <option value="good">{t("card_condition_good_option")}</option>
+                              <option value="worn">{t("card_condition_worn_option")}</option>
                             </select>
                           </div>
 
@@ -1148,30 +1154,26 @@ export default function Home() {
                               <>
                                 <div className="flex justify-between sm:justify-end gap-1.5">
                                   <span className="text-zinc-600 dark:text-zinc-400">
-                                    Retail:{" "}
+                                    {t("card_retail_label")}{" "}
                                   </span>
                                   <strong className="font-semibold text-zinc-950 dark:text-white">
                                     {item.estimation.priceMin}–
-                                    {item.estimation.priceMax} CZK
+                                    {item.estimation.priceMax} {t("currency")}
                                   </strong>
                                 </div>
                                 <span className="block text-[10px] text-zinc-600 dark:text-zinc-400">
-                                  based on {item.estimation.comparableCount}{" "}
-                                  comparable{" "}
-                                  {item.estimation.comparableCount === 1
-                                    ? "copy"
-                                    : "copies"}
+                                  {t("card_based_on_comparables", { count: item.estimation.comparableCount })}
                                 </span>
                                 <div className="flex justify-between sm:justify-end gap-1.5 mt-1 sm:mt-0">
                                   <span className="text-amber-800 dark:text-amber-400 font-bold">
-                                    Below limit
+                                    {t("card_below_limit_label")}
                                   </span>
                                 </div>
                               </>
                             ) : (
                               <div>
                                 <span className="text-zinc-600 dark:text-zinc-400 font-semibold italic">
-                                  No comparables available
+                                  {t("card_no_comparables_label")}
                                 </span>
                               </div>
                             )}
@@ -1195,16 +1197,15 @@ export default function Home() {
                         {!item.estimation.hasEstimate && (
                           <div className="mt-4 p-4 rounded-lg border border-zinc-200 bg-zinc-50/50 dark:border-zinc-800/80 dark:bg-zinc-950/20 space-y-2">
                             <h5 className="text-[10px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
-                              General Used Book Reference Context
+                              {t("card_no_comparables_title")}
                             </h5>
                             <p className="text-[10px] text-zinc-600 dark:text-zinc-400 leading-normal">
-                              We have no comparables for this title in our
-                              snapshot. For context, typical used books on
-                              Knihobot list for **{item.referenceStats.p25Price}
-                              –{item.referenceStats.p75Price} CZK** (typical
-                              payout **{item.referenceStats.p25Payout}–
-                              {item.referenceStats.p75Payout} CZK**). Your
-                              book&apos;s actual value may differ.
+                              {t("card_no_comparables_text", {
+                                p25Price: item.referenceStats.p25Price,
+                                p75Price: item.referenceStats.p75Price,
+                                p25Payout: item.referenceStats.p25Payout,
+                                p75Payout: item.referenceStats.p75Payout
+                              })}
                             </p>
                           </div>
                         )}
@@ -1261,7 +1262,7 @@ export default function Home() {
                     d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                   />
                 </svg>
-                <span>Demo Integration Preview</span>
+                <span>{t("checkout_dialog_title")}</span>
               </h3>
               <button
                 onClick={() => setIsCheckoutModalOpen(false)}
@@ -1276,14 +1277,12 @@ export default function Home() {
 
             <div className="space-y-3 text-xs text-zinc-600 dark:text-zinc-400 leading-normal">
               <p>
-                <strong>This is a simulated demo environment.</strong>
+                <strong>{t("checkout_body_p1")}</strong>
               </p>
               <p>
-                To actually sell your books on Knihobot, proceed to the real seller intake form. Your active shelf items will not be sent automatically.
+                {t("checkout_body_p2")}
               </p>
-              <p>
-                Alternatively, click the secondary button below to simulate shipping these <strong>{sendBucket.length} books</strong>. You can then view their progress inside your demo tracking dashboard.
-              </p>
+              <p dangerouslySetInnerHTML={{ __html: t("checkout_body_p3", { count: sendBucket.length }) }} />
             </div>
 
             <div className="flex flex-col gap-2 pt-2">
@@ -1294,19 +1293,19 @@ export default function Home() {
                 onClick={() => setIsCheckoutModalOpen(false)}
                 className="inline-flex h-10 items-center justify-center rounded-lg bg-brand px-4 text-xs font-bold text-white hover:bg-brand/95 transition-all text-center dark:bg-emerald-700 dark:hover:bg-emerald-600 cursor-pointer"
               >
-                Proceed to real Knihobot intake (knihobot.cz) →
+                {t("checkout_cta_primary")}
               </a>
               <button
                 onClick={handleSimulateCheckout}
                 className="inline-flex h-10 items-center justify-center rounded-lg border border-zinc-200 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-800/85 px-4 text-xs font-bold text-zinc-800 dark:text-zinc-200 cursor-pointer transition-colors"
               >
-                Simulate Tracking on Demo Dashboard
+                {t("checkout_cta_secondary")}
               </button>
               <button
                 onClick={() => setIsCheckoutModalOpen(false)}
                 className="text-center text-[10px] text-zinc-500 hover:underline cursor-pointer"
               >
-                Cancel
+                {t("checkout_cancel")}
               </button>
             </div>
           </div>
@@ -1338,46 +1337,46 @@ export default function Home() {
                 d="M9 5l7 7-7 7"
               />
             </svg>
-            <span>Show payout math breakdown</span>
+            <span>{t("math_toggle_label")}</span>
           </summary>
           <div className="mt-2 p-3 rounded-lg border border-zinc-100 bg-zinc-50/50 dark:border-zinc-800/50 dark:bg-zinc-900/20 space-y-2">
             <div className="flex justify-between">
-              <span>Min Estimate Math:</span>
+              <span>{t("math_min_estimate_label")}</span>
               <span>
                 {item.estimation.payoutMin.isBelowThreshold ? (
                   <span className="text-amber-800 dark:text-amber-400 font-semibold">
-                    Below threshold (50 CZK) → 0 CZK payout
+                    {t("math_below_threshold", { limit: 50 })}
                   </span>
                 ) : (
-                  <span>
-                    {item.estimation.payoutMin.listPrice} CZK ×{" "}
-                    {item.estimation.payoutMin.sellerSharePercent * 100}% (
-                    {item.estimation.payoutMin.sellerShareAmount} CZK) −{" "}
-                    {item.estimation.payoutMin.fixedFee} CZK fee ={" "}
-                    <strong>
-                      {item.estimation.payoutMin.payout} CZK payout
-                    </strong>
-                  </span>
+                  <span dangerouslySetInnerHTML={{
+                    __html: t("math_formula_result", {
+                      listPrice: item.estimation.payoutMin.listPrice,
+                      percent: item.estimation.payoutMin.sellerSharePercent * 100,
+                      shareAmount: item.estimation.payoutMin.sellerShareAmount,
+                      fee: item.estimation.payoutMin.fixedFee,
+                      payout: item.estimation.payoutMin.payout
+                    })
+                  }} />
                 )}
               </span>
             </div>
             <div className="flex justify-between">
-              <span>Max Estimate Math:</span>
+              <span>{t("math_max_estimate_label")}</span>
               <span>
                 {item.estimation.payoutMax.isBelowThreshold ? (
                   <span className="text-amber-800 dark:text-amber-400 font-semibold">
-                    Below threshold (50 CZK) → 0 CZK payout
+                    {t("math_below_threshold", { limit: 50 })}
                   </span>
                 ) : (
-                  <span>
-                    {item.estimation.payoutMax.listPrice} CZK ×{" "}
-                    {item.estimation.payoutMax.sellerSharePercent * 100}% (
-                    {item.estimation.payoutMax.sellerShareAmount} CZK) −{" "}
-                    {item.estimation.payoutMax.fixedFee} CZK fee ={" "}
-                    <strong>
-                      {item.estimation.payoutMax.payout} CZK payout
-                    </strong>
-                  </span>
+                  <span dangerouslySetInnerHTML={{
+                    __html: t("math_formula_result", {
+                      listPrice: item.estimation.payoutMax.listPrice,
+                      percent: item.estimation.payoutMax.sellerSharePercent * 100,
+                      shareAmount: item.estimation.payoutMax.sellerShareAmount,
+                      fee: item.estimation.payoutMax.fixedFee,
+                      payout: item.estimation.payoutMax.payout
+                    })
+                  }} />
                 )}
               </span>
             </div>
@@ -1406,7 +1405,7 @@ export default function Home() {
                 d="M9 5l7 7-7 7"
               />
             </svg>
-            <span>Peek at comparables ({item.estimation.comparableCount})</span>
+            <span>{t("peek_comparables_button", { count: item.estimation.comparableCount })}</span>
           </button>
 
           {isPeekOpen && (
@@ -1418,9 +1417,9 @@ export default function Home() {
                 <table className="w-full text-left border-collapse text-[10px]">
                   <thead className="bg-zinc-50 text-zinc-600 dark:text-zinc-400 font-semibold sticky top-0 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800">
                     <tr>
-                      <th className="p-2">Condition</th>
-                      <th className="p-2 text-right">Price</th>
-                      <th className="p-2 text-right">Stock</th>
+                      <th className="p-2">{t("peek_col_condition")}</th>
+                      <th className="p-2 text-right">{t("peek_col_price")}</th>
+                      <th className="p-2 text-right">{t("peek_col_stock")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/50 dark:bg-zinc-900/10">
@@ -1433,7 +1432,7 @@ export default function Home() {
                           {comp.condition}
                         </td>
                         <td className="p-2 text-right font-semibold text-zinc-900 dark:text-zinc-100">
-                          {comp.listPriceCzk} CZK
+                          {comp.listPriceCzk} {t("currency")}
                         </td>
                         <td className="p-2 text-right text-zinc-600 dark:text-zinc-400">
                           {comp.activeCopies}
@@ -1445,7 +1444,7 @@ export default function Home() {
               </div>
               {item.comparables.length > 20 && (
                 <div className="bg-zinc-50 border-t border-zinc-200 p-2 text-center text-[9px] text-zinc-600 dark:text-zinc-400 font-medium dark:bg-zinc-900 dark:border-zinc-800">
-                  Showing top 20 of {item.comparables.length} comparables.
+                  {t("peek_showing_top", { total: item.comparables.length })}
                 </div>
               )}
             </div>
